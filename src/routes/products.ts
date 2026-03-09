@@ -10,15 +10,9 @@ import {
   VirtualCoin,
   VtxoScript,
 } from "@arkade-os/sdk";
-import {
-  arkProvider,
-  getNetworkTimeSeconds,
-  getServerPubkey,
-  indexerProvider,
-} from "../lib/ark.js";
+import { arkProvider, getServerPubkey, indexerProvider } from "../lib/ark.js";
 
 import { base64, hex } from "@scure/base";
-import { format } from "date-fns";
 
 export const products = new Hono();
 
@@ -456,7 +450,7 @@ products.get("/:id/collaborate-psbts", async (c) => {
   return c.json({ collaboratePsbt, recipientAddress });
 });
 
-// Seller sends their signed collaborative PSBT. Backend saves it, status -> sellerReady.
+// Seller sends their signed collaborative PSBT. Backend submits to Ark and returns checkpoints for seller to sign.
 products.post("/:id/collaborate", async (c) => {
   const id = c.req.param("id");
   const { signedPsbt } = await c.req.json();
@@ -470,60 +464,6 @@ products.post("/:id/collaborate", async (c) => {
   });
 
   if (!product) return c.json({ error: "Product not found" }, 404);
-
-  await prisma.products.update({
-    where: { id: product.id },
-    data: {
-      status: "sellerReady",
-      sellerSignedCollabPsbt: signedPsbt,
-    },
-  });
-
-  console.log("=== SELLER READY ===");
-  console.log("Product ID:", product.id);
-  console.log("====================");
-
-  return c.json({ success: true, message: "Waiting for buyer confirmation" });
-});
-
-// Buyer checks if the seller is ready and gets the PSBT to sign.
-products.get("/:id/collab-status", async (c) => {
-  const id = c.req.param("id");
-
-  const product = await prisma.products.findUnique({
-    where: { id: Number(id) },
-  });
-
-  if (!product) return c.json({ error: "Product not found" }, 404);
-
-  if (product.status !== "sellerReady" || !product.sellerSignedCollabPsbt) {
-    return c.json({ status: product.status, buyerPsbt: null });
-  }
-
-  return c.json({
-    status: "sellerReady",
-    collaboratePsbt: product.sellerSignedCollabPsbt,
-  });
-});
-
-// Buyer sends the fully signed PSBT (buyer + seller sigs). Backend submits to Ark server.
-products.post("/:id/confirm-collaborate", async (c) => {
-  const id = c.req.param("id");
-  const { signedPsbt } = await c.req.json();
-
-  if (!signedPsbt) {
-    return c.json({ error: "signedPsbt is required" }, 400);
-  }
-
-  const product = await prisma.products.findUnique({
-    where: { id: Number(id) },
-  });
-
-  if (!product) return c.json({ error: "Product not found" }, 404);
-
-  if (product.status !== "sellerReady") {
-    return c.json({ error: "Seller has not signed yet" }, 400);
-  }
 
   if (!product.timelockExpiry || !product.buyerPubkey) {
     return c.json({ error: "Escrow not configured" }, 400);
@@ -582,11 +522,20 @@ products.post("/:id/confirm-collaborate", async (c) => {
   const { checkpoints } = buildOffchainTx(inputs, outputs, serverUnrollScript);
   const checkpointPsbts = checkpoints.map((cp: Transaction) => cp.toPSBT());
 
-  // Submit buyer+seller signed PSBT to Ark (server co-signs as 3rd signer)
+  // Submit seller-signed PSBT to Ark (server co-signs)
   const { arkTxid, signedCheckpointTxs } = await arkProvider.submitTx(
     signedPsbt,
     checkpointPsbts.map((cp: Uint8Array) => base64.encode(cp)),
   );
+
+  // Save seller-signed PSBT and arkTxid, but do NOT set sellerReady yet
+  await prisma.products.update({
+    where: { id: product.id },
+    data: {
+      sellerSignedCollabPsbt: signedPsbt,
+      collabArkTxid: arkTxid,
+    },
+  });
 
   console.log("=== COLLABORATE SUBMITTED ===");
   console.log("Product ID:", product.id);
@@ -594,23 +543,19 @@ products.post("/:id/confirm-collaborate", async (c) => {
   console.log("=============================");
 
   return c.json({
-    arkTxid,
     signedCheckpointTxs,
     nextStep:
-      "Sign checkpoint txs with buyer key and call POST /products/:id/finalize-collaborate",
+      "Sign checkpoint txs with seller key and call POST /products/:id/collaborate-checkpoints",
   });
 });
 
-// Buyer sends signed checkpoints to finalize the collaborative release.
-products.post("/:id/finalize-collaborate", async (c) => {
+// Seller sends their signed checkpoint txs. Backend saves them, status -> sellerReady.
+products.post("/:id/collaborate-checkpoints", async (c) => {
   const id = c.req.param("id");
-  const { arkTxid, signedCheckpointTxs } = await c.req.json();
+  const { signedCheckpointTxs } = await c.req.json();
 
-  if (!arkTxid || !signedCheckpointTxs) {
-    return c.json(
-      { error: "arkTxid and signedCheckpointTxs are required" },
-      400,
-    );
+  if (!signedCheckpointTxs) {
+    return c.json({ error: "signedCheckpointTxs is required" }, 400);
   }
 
   const product = await prisma.products.findUnique({
@@ -619,15 +564,75 @@ products.post("/:id/finalize-collaborate", async (c) => {
 
   if (!product) return c.json({ error: "Product not found" }, 404);
 
-  if (product.status === "payed") {
-    return c.json({ error: "Already payed" }, 400);
+  if (!product.collabArkTxid) {
+    return c.json({ error: "Collaborate not submitted yet" }, 400);
   }
 
-  await arkProvider.finalizeTx(arkTxid, signedCheckpointTxs);
+  await prisma.products.update({
+    where: { id: product.id },
+    data: {
+      sellerSignedCheckpoints: JSON.stringify(signedCheckpointTxs),
+      status: "sellerReady",
+    },
+  });
+
+  console.log("=== SELLER READY ===");
+  console.log("Product ID:", product.id);
+  console.log("====================");
+
+  return c.json({ success: true, message: "Waiting for buyer confirmation" });
+});
+
+// Buyer checks if the seller is ready and gets the PSBT to sign.
+products.get("/:id/collab-status", async (c) => {
+  const id = c.req.param("id");
+
+  const product = await prisma.products.findUnique({
+    where: { id: Number(id) },
+  });
+
+  if (!product) return c.json({ error: "Product not found" }, 404);
+
+  if (product.status !== "sellerReady" || !product.sellerSignedCollabPsbt) {
+    return c.json({ status: product.status, buyerPsbt: null });
+  }
+
+  return c.json({
+    status: "sellerReady",
+    collaboratePsbt: product.sellerSignedCollabPsbt,
+  });
+});
+
+// Buyer sends the fully signed PSBT (buyer + seller sigs). Backend finalizes with seller-signed checkpoints.
+products.post("/:id/confirm-collaborate", async (c) => {
+  const id = c.req.param("id");
+  const { signedPsbt } = await c.req.json();
+
+  if (!signedPsbt) {
+    return c.json({ error: "signedPsbt is required" }, 400);
+  }
+
+  const product = await prisma.products.findUnique({
+    where: { id: Number(id) },
+  });
+
+  if (!product) return c.json({ error: "Product not found" }, 404);
+
+  if (product.status !== "sellerReady") {
+    return c.json({ error: "Seller has not signed yet" }, 400);
+  }
+
+  if (!product.collabArkTxid || !product.sellerSignedCheckpoints) {
+    return c.json({ error: "Collaborate not fully prepared" }, 400);
+  }
+
+  const sellerSignedCheckpoints = JSON.parse(product.sellerSignedCheckpoints);
+
+  await arkProvider.finalizeTx(product.collabArkTxid, sellerSignedCheckpoints);
 
   console.log("=== COLLABORATE FINALIZED ===");
   console.log("Product ID:", product.id);
-  console.log("Ark TX ID:", arkTxid);
+  console.log("Ark TX ID:", product.collabArkTxid);
   console.log("=============================");
 
   await prisma.products.update({
@@ -635,5 +640,5 @@ products.post("/:id/finalize-collaborate", async (c) => {
     data: { status: "payed" },
   });
 
-  return c.json({ success: true, arkTxid });
+  return c.json({ success: true, arkTxid: product.collabArkTxid });
 });

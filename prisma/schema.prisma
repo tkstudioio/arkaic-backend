@@ -25,7 +25,9 @@ model Products {
   buyerPubkey            String?
   timelockExpiry         Int?
   status                 ProductStatus @default(awaitingFunds)
-  sellerSignedCollabPsbt String?
+  sellerSignedCollabPsbt  String?
+  collabArkTxid           String?
+  sellerSignedCheckpoints String?
 }
 
 enum ProductStatus {
