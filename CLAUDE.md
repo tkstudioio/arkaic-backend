@@ -1,0 +1,48 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+Arkaic backend — a Hono-based TypeScript API for a Bitcoin escrow marketplace built on the Ark protocol (mutinynet). Buyers and sellers exchange funds through escrow VTXOs with timelock-based refund and collaborative release paths.
+
+## Commands
+
+- **Dev server:** `npm run dev` (uses `tsx watch` with `.env.local`, serves on port 3000)
+- **Type check:** `npx tsc --noEmit`
+- **Prisma generate:** `npx prisma generate`
+- **Prisma migrate:** `npx prisma migrate dev`
+- **Install deps:** `npm install`
+
+## Architecture
+
+- **Framework:** Hono (lightweight web framework), ESM-only (`"type": "module"`)
+- **Runtime:** Node.js with `@hono/node-server` (uses `serve()` in `src/index.ts`)
+- **Database:** SQLite via Prisma with `better-sqlite3` adapter. Schema in `prisma/schema.prisma`, generated client output to `src/generated/prisma/`
+- **TypeScript:** Strict mode, ESNext target, NodeNext modules
+
+### Source Layout
+
+- `src/index.ts` — App entry point, creates Hono instance, mounts routes, starts server
+- `src/routes/` — Route modules (e.g., `products.ts` mounted at `/products`)
+- `src/lib/ark.ts` — Ark protocol providers (`RestArkProvider`, `RestIndexerProvider`, `EsploraProvider`) pointing at `mutinynet.arkade.sh`
+- `src/lib/prisma.ts` — Prisma client singleton (SQLite at `file:./dev.db`)
+- `src/generated/prisma/` — Auto-generated Prisma client (do not edit)
+
+### Escrow Flow
+
+Products go through a state machine: `awaitingFunds` → `fundLocked` → `sellerReady` → `payed` (or `refunded`).
+
+Two spend paths exist for each escrow VTXO:
+1. **Collaborative path** (buyer + seller + server 3-of-3): seller signs first (`/collaborate`), buyer confirms (`/confirm-collaborate`), then finalizes
+2. **Refund path** (buyer + server with CLTV timelock): buyer gets PSBTs (`/get-psbts`), signs and submits (`/refund`), then finalizes
+
+All Ark transactions follow: build PSBT → sign → `submitTx` → sign checkpoints → `finalizeTx`.
+
+## Key Conventions
+
+- Route handlers use Hono's `c` context (e.g., `c.json()`, `c.text()`, `c.req.json()`)
+- Pubkeys are hex-encoded, converted to x-only (32 bytes) via `toXOnly()` before use in tapscripts
+- All `.js` extensions in imports are required (ESM resolution)
+- `@arkade-os/sdk` provides all Ark/Bitcoin primitives (`VtxoScript`, `MultisigTapscript`, `CLTVMultisigTapscript`, `buildOffchainTx`, etc.)
+- `@scure/base` for `hex`/`base64` encoding

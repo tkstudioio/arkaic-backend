@@ -1,0 +1,25 @@
+{
+  "name": "hono",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file=.env.local src/index.ts"
+  },
+  "dependencies": {
+    "@arkade-os/sdk": "^0.3.13",
+    "@hono/node-server": "^1.19.11",
+    "@prisma/adapter-better-sqlite3": "^7.4.2",
+    "@prisma/client": "^7.4.2",
+    "@scure/base": "^2.0.0",
+    "date-fns": "^4.1.0",
+    "dotenv": "^17.3.1",
+    "hono": "^4.12.5",
+    "lodash": "^4.17.23"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.17.24",
+    "@types/node": "^20.11.17",
+    "prisma": "^7.4.2",
+    "tsx": "^4.7.1",
+    "typescript": "^5.8.3"
+  }
+}

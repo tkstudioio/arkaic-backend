@@ -1,0 +1,37 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id    Int     @id @default(autoincrement())
+  email String  @unique
+  name  String?
+}
+
+model Products {
+  id                     Int           @id @default(autoincrement())
+  nome                   String
+  prezzo                 Float
+  sellerPubkey           String
+  createdAt              DateTime      @default(now())
+  buyerPubkey            String?
+  timelockExpiry         Int?
+  status                 ProductStatus @default(awaitingFunds)
+  sellerSignedCollabPsbt String?
+}
+
+enum ProductStatus {
+  awaitingFunds
+  fundLocked
+  sellerReady
+  refunded
+  payed
+}

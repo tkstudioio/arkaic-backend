@@ -1,0 +1,8 @@
+-- CreateTable
+CREATE TABLE "Listing" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "nome" TEXT NOT NULL,
+    "prezzo" REAL NOT NULL,
+    "sellerPubkey" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
