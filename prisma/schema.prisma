@@ -29,12 +29,24 @@ model Products {
   collabArkTxid           String?
   serverSignedCheckpoints String?
   buyerSignedCheckpoints  String?
+  events                 ProductEvent[]
+}
+
+model ProductEvent {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  product   Products @relation(fields: [productId], references: [id])
+  action    String
+  createdAt DateTime @default(now())
+  metadata  String?
 }
 
 enum ProductStatus {
   awaitingFunds
   fundLocked
   sellerReady
+  buyerSubmitted
+  buyerCheckpointsSigned
   refunded
   payed
 }
