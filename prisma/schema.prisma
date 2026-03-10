@@ -27,7 +27,8 @@ model Products {
   status                 ProductStatus @default(awaitingFunds)
   sellerSignedCollabPsbt  String?
   collabArkTxid           String?
-  sellerSignedCheckpoints String?
+  serverSignedCheckpoints String?
+  buyerSignedCheckpoints  String?
 }
 
 enum ProductStatus {
