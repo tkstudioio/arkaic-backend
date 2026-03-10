@@ -450,13 +450,13 @@ products.get("/:id/collaborate-psbts", async (c) => {
   return c.json({ collaboratePsbt, recipientAddress });
 });
 
-// Seller sends their signed collaborative PSBT. Backend submits to Ark and returns checkpoints for seller to sign.
+// Seller sends their signed collaborative PSBT. Backend saves it (does NOT submit yet — needs buyer sig too for 3-of-3).
 products.post("/:id/collaborate", async (c) => {
   const id = c.req.param("id");
   const { signedPsbt } = await c.req.json();
 
   if (!signedPsbt) {
-    return c.json({ error: "sellerSignedPsbt is required" }, 400);
+    return c.json({ error: "signedPsbt is required" }, 400);
   }
 
   const product = await prisma.products.findUnique({
@@ -464,6 +464,164 @@ products.post("/:id/collaborate", async (c) => {
   });
 
   if (!product) return c.json({ error: "Product not found" }, 404);
+
+  if (!product.timelockExpiry || !product.buyerPubkey) {
+    return c.json({ error: "Escrow not configured" }, 400);
+  }
+
+  await prisma.products.update({
+    where: { id: product.id },
+    data: {
+      sellerSignedCollabPsbt: signedPsbt,
+      status: "sellerReady",
+    },
+  });
+
+  console.log("=== SELLER SIGNED COLLAB PSBT ===");
+  console.log("Product ID:", product.id);
+  console.log("=================================");
+
+  return c.json({
+    success: true,
+    nextStep:
+      "Buyer retrieves seller-signed PSBT via GET /products/:id/collab-status, adds their signature, and calls POST /products/:id/confirm-collaborate",
+  });
+});
+
+// Buyer sends their signed checkpoint txs (server-signed + buyer-signed). Needed before seller can sign.
+products.post("/:id/buyer-sign-checkpoints", async (c) => {
+  const id = c.req.param("id");
+  const { signedCheckpointTxs } = await c.req.json();
+
+  if (!signedCheckpointTxs) {
+    return c.json({ error: "signedCheckpointTxs is required" }, 400);
+  }
+
+  const product = await prisma.products.findUnique({
+    where: { id: Number(id) },
+  });
+
+  if (!product) return c.json({ error: "Product not found" }, 404);
+
+  if (!product.collabArkTxid) {
+    return c.json({ error: "Collaborate not submitted yet" }, 400);
+  }
+
+  await prisma.products.update({
+    where: { id: product.id },
+    data: {
+      buyerSignedCheckpoints: JSON.stringify(signedCheckpointTxs),
+    },
+  });
+
+  console.log("=== BUYER SIGNED CHECKPOINTS ===");
+  console.log("Product ID:", product.id);
+  console.log("================================");
+
+  return c.json({
+    success: true,
+    nextStep:
+      "Seller retrieves checkpoints via GET /products/:id/collab-checkpoints, signs them, and calls POST /products/:id/collaborate-checkpoints",
+  });
+});
+
+// Seller polls for checkpoint txs to sign (available after buyer signs checkpoints).
+products.get("/:id/collab-checkpoints", async (c) => {
+  const id = c.req.param("id");
+
+  const product = await prisma.products.findUnique({
+    where: { id: Number(id) },
+  });
+
+  if (!product) return c.json({ error: "Product not found" }, 404);
+
+  if (!product.collabArkTxid || !product.buyerSignedCheckpoints) {
+    return c.json({ status: product.status, checkpointTxs: null });
+  }
+
+  return c.json({
+    status: product.status,
+    arkTxid: product.collabArkTxid,
+    checkpointTxs: JSON.parse(product.buyerSignedCheckpoints),
+  });
+});
+
+// Seller sends their signed checkpoint txs. Backend finalizes the Ark tx.
+products.post("/:id/collaborate-checkpoints", async (c) => {
+  const id = c.req.param("id");
+  const { signedCheckpointTxs } = await c.req.json();
+
+  if (!signedCheckpointTxs) {
+    return c.json({ error: "signedCheckpointTxs is required" }, 400);
+  }
+
+  const product = await prisma.products.findUnique({
+    where: { id: Number(id) },
+  });
+
+  if (!product) return c.json({ error: "Product not found" }, 404);
+
+  if (!product.collabArkTxid) {
+    return c.json({ error: "Collaborate not submitted yet" }, 400);
+  }
+
+  await arkProvider.finalizeTx(product.collabArkTxid, signedCheckpointTxs);
+
+  console.log("=== COLLABORATE FINALIZED ===");
+  console.log("Product ID:", product.id);
+  console.log("Ark TX ID:", product.collabArkTxid);
+  console.log("=============================");
+
+  await prisma.products.update({
+    where: { id: product.id },
+    data: { status: "payed" },
+  });
+
+  return c.json({ success: true, arkTxid: product.collabArkTxid });
+});
+
+// Buyer checks if the seller is ready and gets the PSBT to sign.
+products.get("/:id/collab-status", async (c) => {
+  const id = c.req.param("id");
+
+  const product = await prisma.products.findUnique({
+    where: { id: Number(id) },
+  });
+
+  if (!product) return c.json({ error: "Product not found" }, 404);
+
+  if (product.status !== "sellerReady" || !product.sellerSignedCollabPsbt) {
+    return c.json({ status: product.status, buyerPsbt: null });
+  }
+
+  return c.json({
+    status: "sellerReady",
+    collaboratePsbt: product.sellerSignedCollabPsbt,
+  });
+});
+
+// Buyer sends the fully signed PSBT (buyer + seller sigs). Backend submits to Ark and returns checkpoints for seller to sign.
+products.post("/:id/confirm-collaborate", async (c) => {
+  const id = c.req.param("id");
+  const { signedPsbt } = await c.req.json();
+
+  if (!signedPsbt) {
+    return c.json({ error: "signedPsbt is required" }, 400);
+  }
+
+  const product = await prisma.products.findUnique({
+    where: { id: Number(id) },
+  });
+
+  if (!product) return c.json({ error: "Product not found" }, 404);
+
+  if (product.status !== "sellerReady") {
+    return c.json({ error: "Seller has not signed yet" }, 400);
+  }
+
+  if (!product.sellerSignedCollabPsbt) {
+    return c.json({ error: "Seller PSBT not found" }, 400);
+  }
 
   if (!product.timelockExpiry || !product.buyerPubkey) {
     return c.json({ error: "Escrow not configured" }, 400);
@@ -522,18 +680,18 @@ products.post("/:id/collaborate", async (c) => {
   const { checkpoints } = buildOffchainTx(inputs, outputs, serverUnrollScript);
   const checkpointPsbts = checkpoints.map((cp: Transaction) => cp.toPSBT());
 
-  // Submit seller-signed PSBT to Ark (server co-signs)
+  // Submit fully-signed PSBT (buyer + seller) to Ark — server adds its 3rd signature
   const { arkTxid, signedCheckpointTxs } = await arkProvider.submitTx(
     signedPsbt,
     checkpointPsbts.map((cp: Uint8Array) => base64.encode(cp)),
   );
 
-  // Save seller-signed PSBT and arkTxid, but do NOT set sellerReady yet
+  // Save arkTxid and server-signed checkpoints (buyer still needs to sign before seller)
   await prisma.products.update({
     where: { id: product.id },
     data: {
-      sellerSignedCollabPsbt: signedPsbt,
       collabArkTxid: arkTxid,
+      serverSignedCheckpoints: JSON.stringify(signedCheckpointTxs),
     },
   });
 
@@ -543,102 +701,9 @@ products.post("/:id/collaborate", async (c) => {
   console.log("=============================");
 
   return c.json({
+    arkTxid,
     signedCheckpointTxs,
     nextStep:
-      "Sign checkpoint txs with seller key and call POST /products/:id/collaborate-checkpoints",
+      "Buyer signs checkpoint txs and calls POST /products/:id/buyer-sign-checkpoints, then seller retrieves via GET /products/:id/collab-checkpoints, signs them, and calls POST /products/:id/collaborate-checkpoints",
   });
-});
-
-// Seller sends their signed checkpoint txs. Backend saves them, status -> sellerReady.
-products.post("/:id/collaborate-checkpoints", async (c) => {
-  const id = c.req.param("id");
-  const { signedCheckpointTxs } = await c.req.json();
-
-  if (!signedCheckpointTxs) {
-    return c.json({ error: "signedCheckpointTxs is required" }, 400);
-  }
-
-  const product = await prisma.products.findUnique({
-    where: { id: Number(id) },
-  });
-
-  if (!product) return c.json({ error: "Product not found" }, 404);
-
-  if (!product.collabArkTxid) {
-    return c.json({ error: "Collaborate not submitted yet" }, 400);
-  }
-
-  await prisma.products.update({
-    where: { id: product.id },
-    data: {
-      sellerSignedCheckpoints: JSON.stringify(signedCheckpointTxs),
-      status: "sellerReady",
-    },
-  });
-
-  console.log("=== SELLER READY ===");
-  console.log("Product ID:", product.id);
-  console.log("====================");
-
-  return c.json({ success: true, message: "Waiting for buyer confirmation" });
-});
-
-// Buyer checks if the seller is ready and gets the PSBT to sign.
-products.get("/:id/collab-status", async (c) => {
-  const id = c.req.param("id");
-
-  const product = await prisma.products.findUnique({
-    where: { id: Number(id) },
-  });
-
-  if (!product) return c.json({ error: "Product not found" }, 404);
-
-  if (product.status !== "sellerReady" || !product.sellerSignedCollabPsbt) {
-    return c.json({ status: product.status, buyerPsbt: null });
-  }
-
-  return c.json({
-    status: "sellerReady",
-    collaboratePsbt: product.sellerSignedCollabPsbt,
-  });
-});
-
-// Buyer sends the fully signed PSBT (buyer + seller sigs). Backend finalizes with seller-signed checkpoints.
-products.post("/:id/confirm-collaborate", async (c) => {
-  const id = c.req.param("id");
-  const { signedPsbt } = await c.req.json();
-
-  if (!signedPsbt) {
-    return c.json({ error: "signedPsbt is required" }, 400);
-  }
-
-  const product = await prisma.products.findUnique({
-    where: { id: Number(id) },
-  });
-
-  if (!product) return c.json({ error: "Product not found" }, 404);
-
-  if (product.status !== "sellerReady") {
-    return c.json({ error: "Seller has not signed yet" }, 400);
-  }
-
-  if (!product.collabArkTxid || !product.sellerSignedCheckpoints) {
-    return c.json({ error: "Collaborate not fully prepared" }, 400);
-  }
-
-  const sellerSignedCheckpoints = JSON.parse(product.sellerSignedCheckpoints);
-
-  await arkProvider.finalizeTx(product.collabArkTxid, sellerSignedCheckpoints);
-
-  console.log("=== COLLABORATE FINALIZED ===");
-  console.log("Product ID:", product.id);
-  console.log("Ark TX ID:", product.collabArkTxid);
-  console.log("=============================");
-
-  await prisma.products.update({
-    where: { id: product.id },
-    data: { status: "payed" },
-  });
-
-  return c.json({ success: true, arkTxid: product.collabArkTxid });
 });
