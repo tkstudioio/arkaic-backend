@@ -13,41 +13,35 @@ import { buildEscrowContext } from "../../lib/escrow.js";
 
 export const refund = new Hono();
 
-// Build the unsigned refund PSBT for the buyer to sign.
 refund.get("/psbt", async (c) => {
-  const id = c.req.param("id");
+  const escrowId = Number(c.req.param("escrowId"));
 
-  const product = await prisma.products.findUnique({
-    where: { id: Number(id) },
+  const escrow = await prisma.escrow.findUnique({
+    where: { id: escrowId },
+    include: { buyer: true, seller: true },
   });
 
-  if (!product) return c.json({ error: "Product not found" }, 404);
-
-  if (!product.timelockExpiry || !product.buyerPubkey) {
-    return c.json({ error: "Escrow not configured" }, 400);
-  }
+  if (!escrow) return c.json({ error: "Escrow not found" }, 404);
 
   const info = await arkProvider.getInfo();
 
   const { escrowScript, refundPath, buyerPubkey, serverPubkey } =
     await buildEscrowContext(
-      product.buyerPubkey,
-      product.sellerPubkey,
-      product.timelockExpiry,
+      escrow.buyer.pubkey,
+      escrow.seller.pubkey,
+      escrow.timelockExpiry,
     );
 
   const serverUnrollScript = CSVMultisigTapscript.decode(
     hex.decode(info.checkpointTapscript),
   );
 
-  // Build recipient script using DefaultVtxo (forfeit + exit paths)
   const recipientScript = new DefaultVtxo.Script({
     pubKey: buyerPubkey,
     serverPubKey: serverPubkey,
     csvTimelock: { type: "seconds" as const, value: info.unilateralExitDelay },
   });
 
-  // Find spendable VTXOs at the escrow address
   const { vtxos } = await indexerProvider.getVtxos({
     scripts: [hex.encode(escrowScript.pkScript)],
     spendableOnly: true,
@@ -88,46 +82,40 @@ refund.get("/psbt", async (c) => {
   return c.json({ refundPsbt, recipientAddress });
 });
 
-// Buyer sends signed PSBT. Server submits and returns checkpoint txs for buyer to co-sign.
 refund.post("/submit-signed-psbt", async (c) => {
-  const id = c.req.param("id");
+  const escrowId = Number(c.req.param("escrowId"));
   const { signedPsbt } = await c.req.json();
 
   if (!signedPsbt) {
     return c.json({ error: "signedPsbt is required" }, 400);
   }
 
-  const product = await prisma.products.findUnique({
-    where: { id: Number(id) },
+  const escrow = await prisma.escrow.findUnique({
+    where: { id: escrowId },
+    include: { buyer: true, seller: true, chat: true },
   });
 
-  if (!product) return c.json({ error: "Product not found" }, 404);
-
-  if (!product.timelockExpiry || !product.buyerPubkey) {
-    return c.json({ error: "Escrow not configured" }, 400);
-  }
+  if (!escrow) return c.json({ error: "Escrow not found" }, 404);
 
   const info = await arkProvider.getInfo();
 
   const { escrowScript, refundPath, buyerPubkey, serverPubkey } =
     await buildEscrowContext(
-      product.buyerPubkey,
-      product.sellerPubkey,
-      product.timelockExpiry,
+      escrow.buyer.pubkey,
+      escrow.seller.pubkey,
+      escrow.timelockExpiry,
     );
 
   const serverUnrollScript = CSVMultisigTapscript.decode(
     hex.decode(info.checkpointTapscript),
   );
 
-  // Build recipient script using DefaultVtxo (forfeit + exit paths)
   const recipientScript = new DefaultVtxo.Script({
     pubKey: buyerPubkey,
     serverPubKey: serverPubkey,
     csvTimelock: { type: "seconds" as const, value: info.unilateralExitDelay },
   });
 
-  // Find spendable VTXOs at the escrow address
   const { vtxos } = await indexerProvider.getVtxos({
     scripts: [hex.encode(escrowScript.pkScript)],
     spendableOnly: true,
@@ -160,7 +148,6 @@ refund.post("/submit-signed-psbt", async (c) => {
   const { checkpoints } = buildOffchainTx(inputs, outputs, serverUnrollScript);
   const checkpointPsbts = checkpoints.map((cp: Transaction) => cp.toPSBT());
 
-  // Submit buyer-signed PSBT to Ark (server co-signs)
   const { arkTxid, signedCheckpointTxs } = await arkProvider.submitTx(
     signedPsbt,
     checkpointPsbts.map((cp: Uint8Array) => base64.encode(cp)),
@@ -168,14 +155,14 @@ refund.post("/submit-signed-psbt", async (c) => {
 
   await prisma.productEvent.create({
     data: {
-      productId: product.id,
+      productId: escrow.chat.productId,
       action: "refund_submitted",
-      metadata: JSON.stringify({ arkTxid }),
+      metadata: JSON.stringify({ arkTxid, escrowId: escrow.id }),
     },
   });
 
   console.log("=== REFUND SUBMITTED ===");
-  console.log("Product ID:", product.id);
+  console.log("Escrow ID:", escrow.id);
   console.log("Ark TX ID:", arkTxid);
   console.log("========================");
 
@@ -183,13 +170,12 @@ refund.post("/submit-signed-psbt", async (c) => {
     arkTxid,
     signedCheckpointTxs,
     nextStep:
-      "Sign checkpoint txs with buyer key and call POST /products/finalize-refund",
+      "Sign checkpoint txs with buyer key and call POST /escrows/:escrowId/refund/finalize",
   });
 });
 
-// Buyer sends buyer-signed checkpoints to finalize the refund.
 refund.post("/finalize", async (c) => {
-  const id = c.req.param("id");
+  const escrowId = Number(c.req.param("escrowId"));
   const { arkTxid, signedCheckpointTxs } = await c.req.json();
 
   if (!arkTxid || !signedCheckpointTxs) {
@@ -199,33 +185,34 @@ refund.post("/finalize", async (c) => {
     );
   }
 
-  const product = await prisma.products.findUnique({
-    where: { id: Number(id) },
+  const escrow = await prisma.escrow.findUnique({
+    where: { id: escrowId },
+    include: { chat: true },
   });
 
-  if (!product) return c.json({ error: "Product not found" }, 404);
+  if (!escrow) return c.json({ error: "Escrow not found" }, 404);
 
-  if (product.status === "refunded") {
+  if (escrow.status === "refunded") {
     return c.json({ error: "Already refunded" }, 400);
   }
 
   await arkProvider.finalizeTx(arkTxid, signedCheckpointTxs);
 
   console.log("=== REFUND FINALIZED ===");
-  console.log("Product ID:", product.id);
+  console.log("Escrow ID:", escrow.id);
   console.log("Ark TX ID:", arkTxid);
   console.log("========================");
 
   await prisma.$transaction(async (tx) => {
-    await tx.products.update({
-      where: { id: product.id },
+    await tx.escrow.update({
+      where: { id: escrow.id },
       data: { status: "refunded" },
     });
     await tx.productEvent.create({
       data: {
-        productId: product.id,
+        productId: escrow.chat.productId,
         action: "refund_finalized",
-        metadata: JSON.stringify({ arkTxid }),
+        metadata: JSON.stringify({ arkTxid, escrowId: escrow.id }),
       },
     });
   });

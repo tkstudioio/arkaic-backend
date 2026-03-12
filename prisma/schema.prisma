@@ -10,26 +10,27 @@ datasource db {
   provider = "sqlite"
 }
 
-model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
+model Account {
+  id            Int           @id @default(autoincrement())
+  pubkey        String        @unique
+  accountName   String
+  createdAt     DateTime      @default(now())
+  products      Products[]
+  buyerChats    ProductChat[]
+  messages      ChatMessage[]
+  buyerEscrows  Escrow[]      @relation("EscrowBuyer")
+  sellerEscrows Escrow[]      @relation("EscrowSeller")
 }
 
 model Products {
-  id                     Int           @id @default(autoincrement())
-  nome                   String
-  prezzo                 Float
-  sellerPubkey           String
-  createdAt              DateTime      @default(now())
-  buyerPubkey            String?
-  timelockExpiry         Int?
-  status                 ProductStatus @default(awaitingFunds)
-  sellerSignedCollabPsbt  String?
-  collabArkTxid           String?
-  serverSignedCheckpoints String?
-  buyerSignedCheckpoints  String?
-  events                 ProductEvent[]
+  id        Int            @id @default(autoincrement())
+  name      String
+  price     Float
+  sellerId  Int
+  seller    Account        @relation(fields: [sellerId], references: [id])
+  createdAt DateTime       @default(now())
+  chats     ProductChat[]
+  events    ProductEvent[]
 }
 
 model ProductEvent {
@@ -41,12 +42,69 @@ model ProductEvent {
   metadata  String?
 }
 
-enum ProductStatus {
+model ProductChat {
+  id          Int           @id @default(autoincrement())
+  productId   Int
+  product     Products      @relation(fields: [productId], references: [id])
+  buyerId     Int
+  buyer       Account       @relation(fields: [buyerId], references: [id])
+  status      ChatStatus    @default(active)
+  agreedPrice Float?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  messages    ChatMessage[]
+  escrow      Escrow?
+
+  @@unique([productId, buyerId])
+}
+
+enum ChatStatus {
+  active
+  concluded
+}
+
+model ChatMessage {
+  id          Int          @id @default(autoincrement())
+  chatId      Int
+  chat        ProductChat  @relation(fields: [chatId], references: [id])
+  senderId    Int
+  sender      Account      @relation(fields: [senderId], references: [id])
+  text        String?
+  offerPrice  Float?
+  offerStatus OfferStatus?
+  createdAt   DateTime     @default(now())
+}
+
+enum OfferStatus {
+  awaitingAccept
+  accepted
+  rejected
+}
+
+model Escrow {
+  id                       Int          @id @default(autoincrement())
+  chatId                   Int          @unique
+  chat                     ProductChat  @relation(fields: [chatId], references: [id])
+  sellerId                 Int
+  seller                   Account      @relation("EscrowSeller", fields: [sellerId], references: [id])
+  buyerId                  Int
+  buyer                    Account      @relation("EscrowBuyer", fields: [buyerId], references: [id])
+  value                    Float
+  timelockExpiry           Int
+  status                   EscrowStatus @default(awaitingFunds)
+  sellerSignedCollabPsbt   String?
+  collabArkTxid            String?
+  serverSignedCheckpoints  String?
+  buyerSignedCheckpoints   String?
+  createdAt                DateTime     @default(now())
+}
+
+enum EscrowStatus {
   awaitingFunds
   fundLocked
   sellerReady
   buyerSubmitted
   buyerCheckpointsSigned
   refunded
-  payed
+  completed
 }

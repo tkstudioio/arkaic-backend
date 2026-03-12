@@ -13,41 +13,35 @@ import { buildEscrowContext } from "../../lib/escrow.js";
 
 export const collaborate = new Hono();
 
-// Build the unsigned collaborative PSBT for the seller to sign.
 collaborate.get("/seller-psbt", async (c) => {
-  const id = c.req.param("id");
+  const escrowId = Number(c.req.param("escrowId"));
 
-  const product = await prisma.products.findUnique({
-    where: { id: Number(id) },
+  const escrow = await prisma.escrow.findUnique({
+    where: { id: escrowId },
+    include: { buyer: true, seller: true },
   });
 
-  if (!product) return c.json({ error: "Product not found" }, 404);
-
-  if (!product.timelockExpiry || !product.buyerPubkey) {
-    return c.json({ error: "Escrow not configured" }, 400);
-  }
+  if (!escrow) return c.json({ error: "Escrow not found" }, 404);
 
   const info = await arkProvider.getInfo();
 
   const { escrowScript, collaborativePath, sellerPubkey, serverPubkey } =
     await buildEscrowContext(
-      product.buyerPubkey,
-      product.sellerPubkey,
-      product.timelockExpiry,
+      escrow.buyer.pubkey,
+      escrow.seller.pubkey,
+      escrow.timelockExpiry,
     );
 
   const serverUnrollScript = CSVMultisigTapscript.decode(
     hex.decode(info.checkpointTapscript),
   );
 
-  // Recipient is the seller
   const recipientScript = new DefaultVtxo.Script({
     pubKey: sellerPubkey,
     serverPubKey: serverPubkey,
     csvTimelock: { type: "seconds" as const, value: info.unilateralExitDelay },
   });
 
-  // Find spendable VTXOs at the escrow address
   const { vtxos } = await indexerProvider.getVtxos({
     scripts: [hex.encode(escrowScript.pkScript)],
     spendableOnly: true,
@@ -88,113 +82,106 @@ collaborate.get("/seller-psbt", async (c) => {
   return c.json({ collaboratePsbt, recipientAddress });
 });
 
-// Seller sends their signed collaborative PSBT. Backend saves it (does NOT submit yet — needs buyer sig too for 3-of-3).
 collaborate.post("/seller-submit-psbt", async (c) => {
-  const id = c.req.param("id");
+  const escrowId = Number(c.req.param("escrowId"));
   const { signedPsbt } = await c.req.json();
 
   if (!signedPsbt) {
     return c.json({ error: "signedPsbt is required" }, 400);
   }
 
-  const product = await prisma.products.findUnique({
-    where: { id: Number(id) },
+  const escrow = await prisma.escrow.findUnique({
+    where: { id: escrowId },
+    include: { chat: true },
   });
 
-  if (!product) return c.json({ error: "Product not found" }, 404);
-
-  if (!product.timelockExpiry || !product.buyerPubkey) {
-    return c.json({ error: "Escrow not configured" }, 400);
-  }
+  if (!escrow) return c.json({ error: "Escrow not found" }, 404);
 
   await prisma.$transaction(async (tx) => {
-    await tx.products.update({
-      where: { id: product.id },
+    await tx.escrow.update({
+      where: { id: escrow.id },
       data: {
         sellerSignedCollabPsbt: signedPsbt,
         status: "sellerReady",
       },
     });
     await tx.productEvent.create({
-      data: { productId: product.id, action: "seller_signed_psbt" },
+      data: {
+        productId: escrow.chat.productId,
+        action: "seller_signed_psbt",
+        metadata: JSON.stringify({ escrowId: escrow.id }),
+      },
     });
   });
 
   return c.json({
     success: true,
     nextStep:
-      "Buyer retrieves seller-signed PSBT via GET /products/:id/collab-status, adds their signature, and calls POST /products/:id/confirm-collaborate",
+      "Buyer retrieves seller-signed PSBT via GET /escrows/:escrowId/collaborate/buyer-psbt, adds their signature, and calls POST /escrows/:escrowId/collaborate/buyer-submit-psbt",
   });
 });
 
-// Buyer checks if the seller is ready and gets the PSBT to sign.
 collaborate.get("/buyer-psbt", async (c) => {
-  const id = c.req.param("id");
+  const escrowId = Number(c.req.param("escrowId"));
 
-  const product = await prisma.products.findUnique({
-    where: { id: Number(id) },
+  const escrow = await prisma.escrow.findUnique({
+    where: { id: escrowId },
   });
 
-  if (!product) return c.json({ error: "Product not found" }, 404);
+  if (!escrow) return c.json({ error: "Escrow not found" }, 404);
 
-  if (product.status !== "sellerReady" || !product.sellerSignedCollabPsbt) {
-    return c.json({ status: product.status, buyerPsbt: null });
+  if (escrow.status !== "sellerReady" || !escrow.sellerSignedCollabPsbt) {
+    return c.json({ status: escrow.status, buyerPsbt: null });
   }
 
   return c.json({
     status: "sellerReady",
-    collaboratePsbt: product.sellerSignedCollabPsbt,
+    collaboratePsbt: escrow.sellerSignedCollabPsbt,
   });
 });
 
-// Buyer sends the fully signed PSBT (buyer + seller sigs). Backend submits to Ark and returns checkpoints for buyer to sign.
 collaborate.post("/buyer-submit-psbt", async (c) => {
-  const id = c.req.param("id");
+  const escrowId = Number(c.req.param("escrowId"));
   const { signedPsbt } = await c.req.json();
 
   if (!signedPsbt) {
     return c.json({ error: "signedPsbt is required" }, 400);
   }
 
-  const product = await prisma.products.findUnique({
-    where: { id: Number(id) },
+  const escrow = await prisma.escrow.findUnique({
+    where: { id: escrowId },
+    include: { buyer: true, seller: true, chat: true },
   });
 
-  if (!product) return c.json({ error: "Product not found" }, 404);
+  if (!escrow) return c.json({ error: "Escrow not found" }, 404);
 
-  if (product.status !== "sellerReady") {
+  if (escrow.status !== "sellerReady") {
     return c.json({ error: "Seller has not signed yet" }, 400);
   }
 
-  if (!product.sellerSignedCollabPsbt) {
+  if (!escrow.sellerSignedCollabPsbt) {
     return c.json({ error: "Seller PSBT not found" }, 400);
-  }
-
-  if (!product.timelockExpiry || !product.buyerPubkey) {
-    return c.json({ error: "Escrow not configured" }, 400);
   }
 
   const info = await arkProvider.getInfo();
 
   const { escrowScript, collaborativePath, sellerPubkey, serverPubkey } =
     await buildEscrowContext(
-      product.buyerPubkey,
-      product.sellerPubkey,
-      product.timelockExpiry,
+      escrow.buyer.pubkey,
+      escrow.seller.pubkey,
+      escrow.timelockExpiry,
     );
 
   const serverUnrollScript = CSVMultisigTapscript.decode(
     hex.decode(info.checkpointTapscript),
   );
 
-  // Recipient is the seller
   const recipientScript = new DefaultVtxo.Script({
     pubKey: sellerPubkey,
     serverPubKey: serverPubkey,
     csvTimelock: { type: "seconds" as const, value: info.unilateralExitDelay },
   });
 
-  // Find spendable VTXOs at the escrow address
   const { vtxos } = await indexerProvider.getVtxos({
     scripts: [hex.encode(escrowScript.pkScript)],
     spendableOnly: true,
@@ -227,16 +214,14 @@ collaborate.post("/buyer-submit-psbt", async (c) => {
   const { checkpoints } = buildOffchainTx(inputs, outputs, serverUnrollScript);
   const checkpointPsbts = checkpoints.map((cp: Transaction) => cp.toPSBT());
 
-  // Submit fully-signed PSBT (buyer + seller) to Ark — server adds its 3rd signature
   const { arkTxid, signedCheckpointTxs } = await arkProvider.submitTx(
     signedPsbt,
     checkpointPsbts.map((cp: Uint8Array) => base64.encode(cp)),
   );
 
-  // Save arkTxid and server-signed checkpoints (buyer still needs to sign before seller)
   await prisma.$transaction(async (tx) => {
-    await tx.products.update({
-      where: { id: product.id },
+    await tx.escrow.update({
+      where: { id: escrow.id },
       data: {
         collabArkTxid: arkTxid,
         serverSignedCheckpoints: JSON.stringify(signedCheckpointTxs),
@@ -245,9 +230,9 @@ collaborate.post("/buyer-submit-psbt", async (c) => {
     });
     await tx.productEvent.create({
       data: {
-        productId: product.id,
+        productId: escrow.chat.productId,
         action: "buyer_signed_psbt",
-        metadata: JSON.stringify({ arkTxid }),
+        metadata: JSON.stringify({ arkTxid, escrowId: escrow.id }),
       },
     });
   });
@@ -256,113 +241,120 @@ collaborate.post("/buyer-submit-psbt", async (c) => {
     arkTxid,
     signedCheckpointTxs,
     nextStep:
-      "Buyer signs checkpoint txs and calls POST /products/:id/buyer-sign-checkpoints, then seller retrieves via GET /products/:id/collab-checkpoints, signs them, and calls POST /products/:id/collaborate-checkpoints",
+      "Buyer signs checkpoint txs and calls POST /escrows/:escrowId/collaborate/buyer-sign-checkpoints",
   });
 });
 
-// Buyer sends their signed checkpoint txs (server-signed + buyer-signed). Needed before seller can sign.
 collaborate.post("/buyer-sign-checkpoints", async (c) => {
-  const id = c.req.param("id");
+  const escrowId = Number(c.req.param("escrowId"));
   const { signedCheckpointTxs } = await c.req.json();
 
   if (!signedCheckpointTxs) {
     return c.json({ error: "signedCheckpointTxs is required" }, 400);
   }
 
-  const product = await prisma.products.findUnique({
-    where: { id: Number(id) },
+  const escrow = await prisma.escrow.findUnique({
+    where: { id: escrowId },
+    include: { chat: true },
   });
 
-  if (!product) return c.json({ error: "Product not found" }, 404);
+  if (!escrow) return c.json({ error: "Escrow not found" }, 404);
 
-  if (!product.collabArkTxid) {
+  if (!escrow.collabArkTxid) {
     return c.json({ error: "Collaborate not submitted yet" }, 400);
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.products.update({
-      where: { id: product.id },
+    await tx.escrow.update({
+      where: { id: escrow.id },
       data: {
         buyerSignedCheckpoints: JSON.stringify(signedCheckpointTxs),
         status: "buyerCheckpointsSigned",
       },
     });
     await tx.productEvent.create({
-      data: { productId: product.id, action: "buyer_signed_checkpoints" },
+      data: {
+        productId: escrow.chat.productId,
+        action: "buyer_signed_checkpoints",
+        metadata: JSON.stringify({ escrowId: escrow.id }),
+      },
     });
   });
 
   console.log("=== BUYER SIGNED CHECKPOINTS ===");
-  console.log("Product ID:", product.id);
+  console.log("Escrow ID:", escrow.id);
   console.log("================================");
 
   return c.json({
     success: true,
     nextStep:
-      "Seller retrieves checkpoints via GET /products/:id/collab-checkpoints, signs them, and calls POST /products/:id/collaborate-checkpoints",
+      "Seller retrieves checkpoints via GET /escrows/:escrowId/collaborate/seller-checkpoints and signs them",
   });
 });
 
-// Seller polls for checkpoint txs to sign (available after buyer signs checkpoints).
 collaborate.get("/seller-checkpoints", async (c) => {
-  const id = c.req.param("id");
+  const escrowId = Number(c.req.param("escrowId"));
 
-  const product = await prisma.products.findUnique({
-    where: { id: Number(id) },
+  const escrow = await prisma.escrow.findUnique({
+    where: { id: escrowId },
   });
 
-  if (!product) return c.json({ error: "Product not found" }, 404);
+  if (!escrow) return c.json({ error: "Escrow not found" }, 404);
 
-  if (!product.collabArkTxid || !product.buyerSignedCheckpoints) {
-    return c.json({ status: product.status, checkpointTxs: null });
+  if (!escrow.collabArkTxid || !escrow.buyerSignedCheckpoints) {
+    return c.json({ status: escrow.status, checkpointTxs: null });
   }
 
   return c.json({
-    status: product.status,
-    arkTxid: product.collabArkTxid,
-    checkpointTxs: JSON.parse(product.buyerSignedCheckpoints),
+    status: escrow.status,
+    arkTxid: escrow.collabArkTxid,
+    checkpointTxs: JSON.parse(escrow.buyerSignedCheckpoints),
   });
 });
 
-// Seller sends their signed checkpoint txs. Backend finalizes the Ark tx.
 collaborate.post("/seller-sign-checkpoints", async (c) => {
-  const id = c.req.param("id");
+  const escrowId = Number(c.req.param("escrowId"));
   const { signedCheckpointTxs } = await c.req.json();
 
   if (!signedCheckpointTxs) {
     return c.json({ error: "signedCheckpointTxs is required" }, 400);
   }
 
-  const product = await prisma.products.findUnique({
-    where: { id: Number(id) },
+  const escrow = await prisma.escrow.findUnique({
+    where: { id: escrowId },
+    include: { chat: true },
   });
 
-  if (!product) return c.json({ error: "Product not found" }, 404);
+  if (!escrow) return c.json({ error: "Escrow not found" }, 404);
 
-  if (!product.collabArkTxid) {
+  if (!escrow.collabArkTxid) {
     return c.json({ error: "Collaborate not submitted yet" }, 400);
   }
 
-  await arkProvider.finalizeTx(product.collabArkTxid, signedCheckpointTxs);
+  await arkProvider.finalizeTx(escrow.collabArkTxid, signedCheckpointTxs);
 
   console.log("=== COLLABORATE FINALIZED ===");
-  console.log("Product ID:", product.id);
-  console.log("Ark TX ID:", product.collabArkTxid);
+  console.log("Escrow ID:", escrow.id);
+  console.log("Ark TX ID:", escrow.collabArkTxid);
   console.log("=============================");
 
   await prisma.$transaction(async (tx) => {
-    await tx.products.update({
-      where: { id: product.id },
-      data: { status: "payed" },
+    await tx.escrow.update({
+      where: { id: escrow.id },
+      data: { status: "completed" },
+    });
+    await tx.productChat.update({
+      where: { id: escrow.chatId },
+      data: { status: "concluded" },
     });
     await tx.productEvent.create({
       data: {
-        productId: product.id,
+        productId: escrow.chat.productId,
         action: "seller_signed_checkpoints",
-        metadata: JSON.stringify({ arkTxid: product.collabArkTxid }),
+        metadata: JSON.stringify({ arkTxid: escrow.collabArkTxid, escrowId: escrow.id }),
       },
     });
   });
 
-  return c.json({ success: true, arkTxid: product.collabArkTxid });
+  return c.json({ success: true, arkTxid: escrow.collabArkTxid });
 });

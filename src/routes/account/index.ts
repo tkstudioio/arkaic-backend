@@ -8,8 +8,11 @@ account.use(bearerAuth);
 
 account.get("/selling", async (c) => {
   const pubkey = c.get("pubkey");
+  const seller = await prisma.account.findUnique({ where: { pubkey } });
+  if (!seller) return c.json({ error: "Account not found" }, 404);
+
   const products = await prisma.products.findMany({
-    where: { sellerPubkey: pubkey },
+    where: { sellerId: seller.id },
     orderBy: { createdAt: "desc" },
   });
   return c.json(products);
@@ -17,10 +20,13 @@ account.get("/selling", async (c) => {
 
 account.get("/buying", async (c) => {
   const pubkey = c.get("pubkey");
-  const chats = await prisma.productChat.findMany({
-    where: { buyerPubkey: pubkey },
-    include: { product: true },
+  const buyer = await prisma.account.findUnique({ where: { pubkey } });
+  if (!buyer) return c.json({ error: "Account not found" }, 404);
+
+  const chatsList = await prisma.productChat.findMany({
+    where: { buyerId: buyer.id },
+    include: { product: { include: { seller: true } }, escrow: true },
     orderBy: { updatedAt: "desc" },
   });
-  return c.json(chats);
+  return c.json(chatsList);
 });

@@ -1,29 +1,57 @@
 import { Hono } from "hono";
 import { prisma } from "../../lib/prisma.js";
-import { VirtualCoin } from "@arkade-os/sdk";
-import { indexerProvider } from "../../lib/ark.js";
-import { hex } from "@scure/base";
-import { buildEscrowContext } from "../../lib/escrow.js";
+import { bearerAuth, type AuthEnv } from "../../lib/auth.js";
 
-export const crud = new Hono();
+export const crud = new Hono<AuthEnv>();
 
+// GET / — list available products (filter out those with active funded escrows)
 crud.get("/", async (c) => {
-  return c.json(await prisma.products.findMany());
+  const unavailableEscrows = await prisma.escrow.findMany({
+    where: {
+      status: {
+        in: [
+          "fundLocked",
+          "sellerReady",
+          "buyerSubmitted",
+          "buyerCheckpointsSigned",
+          "completed",
+        ],
+      },
+    },
+    select: { chat: { select: { productId: true } } },
+  });
+
+  const unavailableProductIds = [
+    ...new Set(unavailableEscrows.map((e) => e.chat.productId)),
+  ];
+
+  const products = await prisma.products.findMany({
+    where:
+      unavailableProductIds.length > 0
+        ? { id: { notIn: unavailableProductIds } }
+        : undefined,
+    include: { seller: true },
+  });
+
+  return c.json(products);
 });
 
+// GET /:id — product detail
 crud.get("/:id", async (c) => {
   const id = c.req.param("id");
   const includeEvents = c.req.query("include") === "events";
   const product = await prisma.products.findUnique({
     where: { id: Number(id) },
-    include: includeEvents
-      ? { events: { orderBy: { createdAt: "asc" } } }
-      : undefined,
+    include: {
+      seller: true,
+      ...(includeEvents ? { events: { orderBy: { createdAt: "asc" } } } : {}),
+    },
   });
   if (!product) return c.json({ error: "Product not found" }, 404);
   return c.json(product);
 });
 
+// GET /:id/events — product events
 crud.get("/:id/events", async (c) => {
   const id = c.req.param("id");
   const product = await prisma.products.findUnique({
@@ -37,12 +65,18 @@ crud.get("/:id/events", async (c) => {
   return c.json(events);
 });
 
-crud.post("/", async (c) => {
+// POST / — create product (auth required)
+crud.post("/", bearerAuth, async (c) => {
+  const pubkey = c.get("pubkey");
   const body = await c.req.json();
-  const { nome, prezzo, sellerPubkey } = body;
+  const { name, price } = body;
+
+  const account = await prisma.account.findUnique({ where: { pubkey } });
+  if (!account) return c.json({ error: "Account not found" }, 404);
+
   const product = await prisma.$transaction(async (tx) => {
     const p = await tx.products.create({
-      data: { nome, prezzo: Number(prezzo), sellerPubkey },
+      data: { name, price: Number(price), sellerId: account.id },
     });
     await tx.productEvent.create({
       data: { productId: p.id, action: "created" },
@@ -53,52 +87,102 @@ crud.post("/", async (c) => {
   return c.json(product, 201);
 });
 
-crud.get("/:id/check-payment", async (c) => {
-  const id = c.req.param("id");
+crud.post("/:id/chats", bearerAuth, async (c) => {
+  const productId = Number(c.req.param("id"));
+  const pubkey = c.get("pubkey");
+  const { text, offerPrice } = await c.req.json();
 
   const product = await prisma.products.findUnique({
-    where: { id: Number(id) },
+    where: { id: productId },
+    include: { seller: true },
   });
 
-  if (!product) return c.text("Product not found", 404);
+  if (!product) return c.json({ error: "Product not found" }, 404);
 
-  const buyerPubkeyString = c.req.query("buyerPubkey");
-  const timelockExpiry = c.req.query("timelockExpiry");
+  if (product.seller.pubkey === pubkey) {
+    return c.json(
+      { error: "Seller cannot open a chat on their own product" },
+      400,
+    );
+  }
 
-  if (!buyerPubkeyString || !timelockExpiry)
-    return c.text("Missing buyerPubkey or timelockExpiry", 400);
+  const buyerAccount = await prisma.account.findUnique({ where: { pubkey } });
+  if (!buyerAccount) return c.json({ error: "Account not found" }, 404);
 
-  const { escrowScript } = await buildEscrowContext(
-    buyerPubkeyString,
-    product.sellerPubkey,
-    Number(timelockExpiry),
-  );
-
-  const { vtxos } = await indexerProvider.getVtxos({
-    scripts: [hex.encode(escrowScript.pkScript)],
+  // Upsert: create chat if not exists, otherwise reuse
+  let chat = await prisma.productChat.findUnique({
+    where: { productId_buyerId: { productId, buyerId: buyerAccount.id } },
   });
 
-  const total = (vtxos as VirtualCoin[]).reduce(
-    (acc, vtxo) => acc + vtxo.value,
-    0,
-  );
+  if (!chat) {
+    chat = await prisma.productChat.create({
+      data: { productId, buyerId: buyerAccount.id },
+    });
+  }
 
-  if (total < product.prezzo) return c.text("Awaiting payment", 404);
+  // Create the first/new message
+  const hasOffer = offerPrice != null;
+  await prisma.chatMessage.create({
+    data: {
+      chatId: chat.id,
+      senderId: buyerAccount.id,
+      text: text ?? null,
+      offerPrice: hasOffer ? Number(offerPrice) : null,
+      offerStatus: hasOffer ? "awaitingAccept" : null,
+    },
+  });
 
-  const updatedProduct = await prisma.$transaction(async (tx) => {
-    const p = await tx.products.update({
-      where: { id: product.id },
-      data: {
-        status: "fundLocked",
-        buyerPubkey: buyerPubkeyString,
-        timelockExpiry: Number(timelockExpiry),
+  const fullChat = await prisma.productChat.findUnique({
+    where: { id: chat.id },
+    include: {
+      messages: { orderBy: { createdAt: "asc" } },
+      buyer: true,
+    },
+  });
+
+  return c.json(fullChat, 201);
+});
+
+// GET /:id/chats — list chats for a product (auth required, seller sees all, buyer sees own)
+crud.get("/:id/chats", bearerAuth, async (c) => {
+  const productId = Number(c.req.param("id"));
+  const pubkey = c.get("pubkey");
+
+  const product = await prisma.products.findUnique({
+    where: { id: productId },
+    include: { seller: true },
+  });
+
+  if (!product) return c.json({ error: "Product not found" }, 404);
+
+  const isSeller = product.seller.pubkey === pubkey;
+
+  if (isSeller) {
+    const chats = await prisma.productChat.findMany({
+      where: { productId },
+      include: {
+        buyer: true,
+        messages: { orderBy: { createdAt: "asc" } },
+        escrow: true,
       },
+      orderBy: { updatedAt: "desc" },
     });
-    await tx.productEvent.create({
-      data: { productId: product.id, action: "funds_locked" },
-    });
-    return p;
+    return c.json(chats);
+  }
+
+  // Buyer sees only their own chat
+  const buyerAccount = await prisma.account.findUnique({ where: { pubkey } });
+  if (!buyerAccount) return c.json({ error: "Account not found" }, 404);
+
+  const chats = await prisma.productChat.findMany({
+    where: { productId, buyerId: buyerAccount.id },
+    include: {
+      buyer: true,
+      messages: { orderBy: { createdAt: "asc" }, include: { sender: true } },
+      escrow: true,
+    },
+    orderBy: { updatedAt: "desc" },
   });
 
-  return c.json(updatedProduct);
+  return c.json(chats);
 });
