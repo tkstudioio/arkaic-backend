@@ -1,9 +1,9 @@
 import { Hono } from "hono";
-import { prisma } from "../../lib/prisma.js";
+import { prisma } from "@/lib/prisma";
 import { VirtualCoin } from "@arkade-os/sdk";
-import { indexerProvider } from "../../lib/ark.js";
+import { indexerProvider } from "@/lib/ark";
 import { hex } from "@scure/base";
-import { buildEscrowContext } from "../../lib/escrow.js";
+import { buildEscrowContext } from "@/lib/escrow";
 
 export const checkPayment = new Hono();
 

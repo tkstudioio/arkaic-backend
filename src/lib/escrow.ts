@@ -3,7 +3,7 @@ import {
   MultisigTapscript,
   VtxoScript,
 } from "@arkade-os/sdk";
-import { getServerPubkey } from "./ark.js";
+import { getServerPubkey } from "@/lib/ark";
 import { hex } from "@scure/base";
 
 export function toXOnly(pubkey: Uint8Array): Uint8Array {

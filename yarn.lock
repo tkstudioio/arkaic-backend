@@ -196,6 +196,11 @@
   resolved "https://registry.npmjs.org/@hono/node-server/-/node-server-1.19.11.tgz"
   integrity sha512-dr8/3zEaB+p0D2n/IUrlPF1HZm586qgJNXK1a9fhg/PzdtkK7Ksd5l312tJX2yBuALqDYBlG20QEbayqPyxn+g==
 
+"@hono/standard-validator@^0.2.2":
+  version "0.2.2"
+  resolved "https://registry.yarnpkg.com/@hono/standard-validator/-/standard-validator-0.2.2.tgz#664846d8b53e0a0c4f5cb82c113c52950bf4b2ec"
+  integrity sha512-mJ7W84Bt/rSvoIl63Ynew+UZOHAzzRAoAXb3JaWuxAkM/Lzg+ZHTCUiz77KOtn2e623WNN8LkD57Dk0szqUrIw==
+
 "@marcbachmann/cel-js@7.3.1":
   version "7.3.1"
   resolved "https://registry.npmjs.org/@marcbachmann/cel-js/-/cel-js-7.3.1.tgz"
@@ -1155,3 +1160,8 @@ zeptomatch@2.1.0:
   dependencies:
     grammex "^3.1.11"
     graphmatch "^1.1.0"
+
+zod@^4.3.6:
+  version "4.3.6"
+  resolved "https://registry.yarnpkg.com/zod/-/zod-4.3.6.tgz#89c56e0aa7d2b05107d894412227087885ab112a"
+  integrity sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==

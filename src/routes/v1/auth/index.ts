@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { prisma } from "../../lib/prisma.js";
-import { bearerAuth, type AuthEnv } from "../../lib/auth.js";
+import { prisma } from "@/lib/prisma";
+import { bearerAuth, type AuthEnv } from "@/lib/auth";
 
 export const auth = new Hono<AuthEnv>();
 

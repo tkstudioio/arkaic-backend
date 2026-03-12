@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { prisma } from "../../lib/prisma.js";
+import { prisma } from "@/lib/prisma";
 import {
   buildOffchainTx,
   CSVMultisigTapscript,
@@ -7,9 +7,9 @@ import {
   Transaction,
   VirtualCoin,
 } from "@arkade-os/sdk";
-import { arkProvider, indexerProvider } from "../../lib/ark.js";
+import { arkProvider, indexerProvider } from "@/lib/ark";
 import { base64, hex } from "@scure/base";
-import { buildEscrowContext } from "../../lib/escrow.js";
+import { buildEscrowContext } from "@/lib/escrow";
 
 export const collaborate = new Hono();
 

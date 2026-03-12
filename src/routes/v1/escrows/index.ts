@@ -1,9 +1,9 @@
 import { Hono } from "hono";
-import { bearerAuth, type AuthEnv } from "../../lib/auth.js";
-import { prisma } from "../../lib/prisma.js";
-import { checkPayment } from "./check-payment.js";
-import { collaborate } from "./collaborate.js";
-import { refund } from "./refund.js";
+import { bearerAuth, type AuthEnv } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { checkPayment } from "@/routes/v1/escrows/check-payment";
+import { collaborate } from "@/routes/v1/escrows/collaborate";
+import { refund } from "@/routes/v1/escrows/refund";
 
 export const escrows = new Hono<AuthEnv>();
 
