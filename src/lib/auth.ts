@@ -12,14 +12,19 @@ export const bearerAuth = createMiddleware<AuthEnv>(async (c, next) => {
 
   if (!jwt) return c.text("Missing Bearer token in request", 401);
 
-  const { payload } = decode(jwt);
+  try {
+    const { payload } = decode(jwt);
 
-  const account = await prisma.account.findUnique({
-    where: { pubkey: payload.sub as string },
-  });
-  if (!account) return c.text("Account not found", 401);
+    const account = await prisma.account.findUnique({
+      where: { pubkey: payload.sub as string },
+    });
+    if (!account) return c.text("Account not found", 401);
 
-  c.set("pubkey", account.pubkey);
+    c.set("pubkey", account.pubkey);
+  } catch (e) {
+    return c.text("JWT not valid", 401);
+  }
+
   await next();
 });
 
