@@ -6,9 +6,6 @@ export const crud = new Hono<AuthEnv>();
 
 // GET / — list available products (filter out those with active funded escrows)
 crud.get("/", async (c) => {
-  const jwt = c.req.header("Authorization")?.replace("Bearer ", "");
-
-  console.log(jwt);
   return c.json([]);
 });
 
