@@ -71,17 +71,22 @@ model ListingCategory {
   @@id([listingId, categoryId])
 }
 
+enum ChatStatus {
+  open
+  closed
+}
+
 model Chat {
-  id            Int      @id @default(autoincrement())
+  id            Int        @id @default(autoincrement())
   listingId     Int
-  listing       Listing  @relation(fields: [listingId], references: [id])
+  listing       Listing    @relation(fields: [listingId], references: [id])
   buyerPubkey   String
-  buyer         Account  @relation("ChatBuyer", fields: [buyerPubkey], references: [pubkey])
-  arbiterPubkey String
-  arbiter       Account  @relation("ChatArbiter", fields: [arbiterPubkey], references: [pubkey])
+  buyer         Account    @relation("ChatBuyer", fields: [buyerPubkey], references: [pubkey])
+  arbiterPubkey String?
+  arbiter       Account?   @relation("ChatArbiter", fields: [arbiterPubkey], references: [pubkey])
   signature     String
-  status        String
-  createdAt     DateTime @default(now())
+  status        ChatStatus @default(open)
+  createdAt     DateTime   @default(now())
 
   messages Message[]
   escrows  Escrow[]
@@ -91,7 +96,7 @@ model Message {
   id           Int      @id @default(autoincrement())
   chatId       Int
   chat         Chat     @relation(fields: [chatId], references: [id])
-  message      String
+  message      String?
   senderPubkey String
   sender       Account  @relation(fields: [senderPubkey], references: [pubkey])
   signature    String
