@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { sValidator } from "@hono/standard-validator";
 import { sign } from "hono/jwt";
-import z from "zod";
+import z, { json } from "zod";
 import crypto from "node:crypto";
 import { schnorr } from "@noble/curves/secp256k1";
 import { hex } from "@scure/base";
