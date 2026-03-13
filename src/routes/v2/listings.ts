@@ -71,5 +71,5 @@ listings.get("/:id", async (c) => {
 
   if (!listing) return c.text("Listing not found", 404);
 
-  return c.json(listings);
+  return c.json(listing);
 });
