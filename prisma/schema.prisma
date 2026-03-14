@@ -22,7 +22,6 @@ model Account {
   messages        Message[]
   buyerEscrows    Escrow[]  @relation("EscrowBuyer")
   sellerEscrows   Escrow[]  @relation("EscrowSeller")
-  serverEscrows   Escrow[]  @relation("EscrowServer")
   arbiterEscrows  Escrow[]  @relation("EscrowArbiter")
   reviewsReceived Review[]  @relation("ReviewReceived")
   reviewsGiven    Review[]  @relation("ReviewGiven")
@@ -30,7 +29,7 @@ model Account {
 
 model Challenge {
   nonce  String   @id
-  pubkey String @unique
+  pubkey String   @unique
   expiry DateTime
 }
 
@@ -50,13 +49,13 @@ model Review {
 }
 
 model Listing {
-  id           Int       @id @default(autoincrement())
+  id           Int      @id @default(autoincrement())
   sellerPubkey String
-  seller       Account   @relation(fields: [sellerPubkey], references: [pubkey])
+  seller       Account  @relation(fields: [sellerPubkey], references: [pubkey])
   signature    String
   name         String
   price        Int
-  createdAt    DateTime  @default(now())
+  createdAt    DateTime @default(now())
 
   categories ListingCategory[]
   chats      Chat[]
@@ -76,6 +75,16 @@ enum ChatStatus {
   closed
 }
 
+enum EscrowStatus {
+  awaitingFunds
+  fundLocked
+  sellerReady
+  buyerSubmitted
+  buyerCheckpointsSigned
+  completed
+  refunded
+}
+
 model Chat {
   id            Int        @id @default(autoincrement())
   listingId     Int
@@ -89,7 +98,9 @@ model Chat {
   createdAt     DateTime   @default(now())
 
   messages Message[]
-  escrows  Escrow[]
+
+  escrowAddress String?
+  escrow        Escrow?
 }
 
 model Message {
@@ -113,8 +124,8 @@ model Offer {
   valid     Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  acceptance   OfferAcceptance? @relation("OfferToAcceptance")
-  escrow       Escrow?
+  acceptance OfferAcceptance? @relation("OfferToAcceptance")
+  escrow     Escrow?
 }
 
 model OfferAcceptance {
@@ -127,34 +138,38 @@ model OfferAcceptance {
 }
 
 model Category {
-  id         Int       @id @default(autoincrement())
+  id         Int        @id @default(autoincrement())
   name       String
   childrenOf Int?
-  parent     Category? @relation("CategoryTree", fields: [childrenOf], references: [id])
+  parent     Category?  @relation("CategoryTree", fields: [childrenOf], references: [id])
   children   Category[] @relation("CategoryTree")
 
   listings ListingCategory[]
 }
 
 model Escrow {
-  address       String   @id
-  buyerPubkey   String
-  buyer         Account  @relation("EscrowBuyer", fields: [buyerPubkey], references: [pubkey])
-  sellerPubkey  String
-  seller        Account  @relation("EscrowSeller", fields: [sellerPubkey], references: [pubkey])
-  serverPubkey  String
-  server        Account  @relation("EscrowServer", fields: [serverPubkey], references: [pubkey])
-  arbiterPubkey String
-  arbiter       Account  @relation("EscrowArbiter", fields: [arbiterPubkey], references: [pubkey])
-  price         Int
-  chatId        Int
-  chat          Chat     @relation(fields: [chatId], references: [id])
-  offerId       Int      @unique
-  offer         Offer    @relation(fields: [offerId], references: [id])
-  status        String
-  createdAt     DateTime @default(now())
-  fundedAt      DateTime?
-  releasedAt    DateTime?
+  address                 String       @id
+  buyerPubkey             String
+  buyer                   Account      @relation("EscrowBuyer", fields: [buyerPubkey], references: [pubkey])
+  sellerPubkey            String
+  seller                  Account      @relation("EscrowSeller", fields: [sellerPubkey], references: [pubkey])
+  serverPubkey            String
+  arbiterPubkey           String?
+  arbiter                 Account?     @relation("EscrowArbiter", fields: [arbiterPubkey], references: [pubkey])
+  price                   Int
+  timelockExpiry          Int
+  chatId                  Int          @unique
+  chat                    Chat         @relation(fields: [chatId], references: [id])
+  offerId                 Int?         @unique
+  offer                   Offer?       @relation(fields: [offerId], references: [id])
+  status                  EscrowStatus @default(awaitingFunds)
+  sellerSignedCollabPsbt  String?
+  collabArkTxid           String?
+  serverSignedCheckpoints String?
+  buyerSignedCheckpoints  String?
+  createdAt               DateTime     @default(now())
+  fundedAt                DateTime?
+  releasedAt              DateTime?
 
   reviews Review[]
 }

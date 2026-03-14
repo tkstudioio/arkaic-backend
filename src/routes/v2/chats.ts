@@ -25,7 +25,10 @@ chats.get("/:chatId", async (c) => {
     },
     include: {
       buyer: true,
-      messages: { include: { sender: true, offer: { include: { acceptance: true } } } },
+      escrow: true,
+      messages: {
+        include: { sender: true, offer: { include: { acceptance: true } } },
+      },
       listing: { include: { seller: true } },
     },
   });
