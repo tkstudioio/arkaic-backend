@@ -2,17 +2,27 @@
 # yarn lockfile v1
 
 
-"@arkade-os/sdk@^0.3.13":
-  version "0.3.13"
-  resolved "https://registry.npmjs.org/@arkade-os/sdk/-/sdk-0.3.13.tgz"
-  integrity sha512-eC6XGifqVf2Xu+sf/3T2duUgLiXlgh/IQXHD+v09wsu8ik/CZedH4gvQpetTjRMKti3DdY/QVLC1OQTKKWgvqQ==
+"@arkade-os/sdk@^0.4.6":
+  version "0.4.6"
+  resolved "https://registry.yarnpkg.com/@arkade-os/sdk/-/sdk-0.4.6.tgz#3cb8335154dee11c1dfcfc14e3dbf3a33e6db29e"
+  integrity sha512-bbkuZpD9aPZkwde+F9VFidIm3MLBFdrjWpweew4M+S9CACVoaa6BqSl6aj9A0YVxG6y1oZ6LVitDS4W3veVG4A==
   dependencies:
+    "@kukks/bitcoin-descriptors" "3.1.0"
     "@marcbachmann/cel-js" "7.3.1"
     "@noble/curves" "2.0.0"
     "@noble/secp256k1" "3.0.0"
     "@scure/base" "2.0.0"
+    "@scure/bip32" "2.0.0"
+    "@scure/bip39" "2.0.1"
     "@scure/btc-signer" "2.0.1"
     bip68 "1.0.4"
+
+"@bitcoinerlab/miniscript@^1.4.3":
+  version "1.4.3"
+  resolved "https://registry.yarnpkg.com/@bitcoinerlab/miniscript/-/miniscript-1.4.3.tgz#edc8900fcfd91d642e3b5b1a8dbd4e8048f8bff0"
+  integrity sha512-gf7WK4dKJJJl+IgLGmkTOxXQLiCje9c9y4wTLC+cyt0tBDTiSXgsG0X8FFaXf4d+34b8B5p/EJGvRd7mEYB6mQ==
+  dependencies:
+    bip68 "^1.0.4"
 
 "@chevrotain/cst-dts-gen@10.5.0":
   version "10.5.0"
@@ -201,6 +211,18 @@
   resolved "https://registry.yarnpkg.com/@hono/standard-validator/-/standard-validator-0.2.2.tgz#664846d8b53e0a0c4f5cb82c113c52950bf4b2ec"
   integrity sha512-mJ7W84Bt/rSvoIl63Ynew+UZOHAzzRAoAXb3JaWuxAkM/Lzg+ZHTCUiz77KOtn2e623WNN8LkD57Dk0szqUrIw==
 
+"@kukks/bitcoin-descriptors@3.1.0":
+  version "3.1.0"
+  resolved "https://registry.yarnpkg.com/@kukks/bitcoin-descriptors/-/bitcoin-descriptors-3.1.0.tgz#a8e29231cad9bf0b6022a831ce8c7d64aedb1855"
+  integrity sha512-7HOCZjufw3DIIDebx7/ZOeol6khkWoccM6vzee6t5bXOJoj/6ISdssEDhjxDgy88in/I39pKz+kzFukxK5eqVw==
+  dependencies:
+    "@bitcoinerlab/miniscript" "^1.4.3"
+    "@noble/curves" "^2.0.1"
+    "@noble/hashes" "^2.0.1"
+    "@scure/base" "^2.0.0"
+    "@scure/bip32" "^2.0.1"
+    "@scure/btc-signer" "^2.0.1"
+
 "@marcbachmann/cel-js@7.3.1":
   version "7.3.1"
   resolved "https://registry.npmjs.org/@marcbachmann/cel-js/-/cel-js-7.3.1.tgz"
@@ -221,7 +243,7 @@
   dependencies:
     "@noble/hashes" "2.0.0"
 
-"@noble/curves@~2.0.0":
+"@noble/curves@2.0.1", "@noble/curves@^2.0.1", "@noble/curves@~2.0.0":
   version "2.0.1"
   resolved "https://registry.npmjs.org/@noble/curves/-/curves-2.0.1.tgz"
   integrity sha512-vs1Az2OOTBiP4q0pwjW5aF0xp9n4MxVrmkFBxc6EKZc6ddYx5gaZiAsZoq0uRRXWbi3AT/sBqn05eRPtn1JCPw==
@@ -233,7 +255,7 @@
   resolved "https://registry.npmjs.org/@noble/hashes/-/hashes-2.0.0.tgz"
   integrity sha512-h8VUBlE8R42+XIDO229cgisD287im3kdY6nbNZJFjc6ZvKIXPYXe6Vc/t+kyjFdMFyt5JpapzTsEg8n63w5/lw==
 
-"@noble/hashes@2.0.1", "@noble/hashes@~2.0.0":
+"@noble/hashes@2.0.1", "@noble/hashes@^2.0.1", "@noble/hashes@~2.0.0":
   version "2.0.1"
   resolved "https://registry.npmjs.org/@noble/hashes/-/hashes-2.0.1.tgz"
   integrity sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw==
@@ -366,7 +388,33 @@
   resolved "https://registry.npmjs.org/@scure/base/-/base-2.0.0.tgz"
   integrity sha512-3E1kpuZginKkek01ovG8krQ0Z44E3DHPjc5S2rjJw9lZn3KSQOs8S7wqikF/AH7iRanHypj85uGyxk0XAyC37w==
 
-"@scure/btc-signer@2.0.1":
+"@scure/bip32@2.0.0":
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/@scure/bip32/-/bip32-2.0.0.tgz#d2d11b578f3f231270f76752999fe95301d04290"
+  integrity sha512-V24pyBWzKQqhB0CrV3Xz7JZr/cC2Nhp9LuIr9gOHkAKxSGwYqTIs8u0AkZgKA7HFqRiyoNg/PymiXOExm+3KlQ==
+  dependencies:
+    "@noble/curves" "2.0.0"
+    "@noble/hashes" "2.0.0"
+    "@scure/base" "2.0.0"
+
+"@scure/bip32@^2.0.1":
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/@scure/bip32/-/bip32-2.0.1.tgz#4ceea207cee8626d3fe8f0b6ab68b6af8f81c482"
+  integrity sha512-4Md1NI5BzoVP+bhyJaY3K6yMesEFzNS1sE/cP+9nuvE7p/b0kx9XbpDHHFl8dHtufcbdHRUUQdRqLIPHN/s7yA==
+  dependencies:
+    "@noble/curves" "2.0.1"
+    "@noble/hashes" "2.0.1"
+    "@scure/base" "2.0.0"
+
+"@scure/bip39@2.0.1":
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/@scure/bip39/-/bip39-2.0.1.tgz#47a6dc15e04faf200041239d46ae3bb7c3c96add"
+  integrity sha512-PsxdFj/d2AcJcZDX1FXN3dDgitDDTmwf78rKZq1a6c1P1Nan1X/Sxc7667zU3U+AN60g7SxxP0YCVw2H/hBycg==
+  dependencies:
+    "@noble/hashes" "2.0.1"
+    "@scure/base" "2.0.0"
+
+"@scure/btc-signer@2.0.1", "@scure/btc-signer@^2.0.1":
   version "2.0.1"
   resolved "https://registry.npmjs.org/@scure/btc-signer/-/btc-signer-2.0.1.tgz"
   integrity sha512-vk5a/16BbSFZkhh1JIJ0+4H9nceZVo5WzKvJGGWiPp3sQOExeW+L53z3dI6u0adTPoE8ZbL+XEb6hEGzVZSvvQ==
@@ -418,7 +466,7 @@ bindings@^1.5.0:
   dependencies:
     file-uri-to-path "1.0.0"
 
-bip68@1.0.4:
+bip68@1.0.4, bip68@^1.0.4:
   version "1.0.4"
   resolved "https://registry.npmjs.org/bip68/-/bip68-1.0.4.tgz"
   integrity sha512-O1htyufFTYy3EO0JkHg2CLykdXEtV2ssqw47Gq9A0WByp662xpJnMEB9m43LZjsSDjIAOozWRExlFQk2hlV1XQ==
@@ -559,11 +607,6 @@ dotenv@^16.6.1:
   version "16.6.1"
   resolved "https://registry.npmjs.org/dotenv/-/dotenv-16.6.1.tgz"
   integrity sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow==
-
-dotenv@^17.3.1:
-  version "17.3.1"
-  resolved "https://registry.npmjs.org/dotenv/-/dotenv-17.3.1.tgz"
-  integrity sha512-IO8C/dzEb6O3F9/twg6ZLXz164a2fhTnEWb95H23Dm4OuN+92NmEAlTrupP9VW6Jm3sO26tQlqyvyi4CsnY9GA==
 
 effect@3.18.4:
   version "3.18.4"
