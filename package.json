@@ -8,6 +8,7 @@
     "@arkade-os/sdk": "^0.4.6",
     "@hono/node-server": "^1.19.11",
     "@hono/standard-validator": "^0.2.2",
+    "@noble/curves": "2.0.0",
     "@prisma/adapter-better-sqlite3": "^7.4.2",
     "@prisma/client": "^7.4.2",
     "@scure/base": "^2.0.0",
