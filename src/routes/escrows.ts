@@ -20,16 +20,7 @@ export const escrows = new Hono<AuthEnv>();
 escrows.use(bearerAuth);
 
 // GET /:chatId - Get a chat's escrow
-escrows.get("/:chatId", async (c) => {
-  const buyerPubkey = c.get("pubkey");
-  const chatId = Number(c.req.param("chatId"));
-
-  const escrow = await prisma.escrow.findFirst({
-    where: { chatId, buyerPubkey },
-  });
-
-  return c.json(escrow, 201);
-});
+escrows.get("/:chatId", async (c) => {});
 
 // POST /:chatId — Create escrow after accepted offer
 escrows.post(
@@ -132,19 +123,6 @@ escrows.get("/address/:address", async (c) => {
 
   if (!escrow) return c.text("Escrow not found", 404);
 
-  return c.json(escrow);
-});
-
-// GET /:address/check-payment — Check if funds arrived
-escrows.get("/address/:address/check-payment", async (c) => {
-  const address = c.req.param("address");
-  console.log("buh");
-  const escrow = await prisma.escrow.findUnique({
-    where: { address },
-  });
-
-  if (!escrow) return c.json({ error: "Escrow not found" }, 404);
-
   const { escrowScript } = await buildEscrowContext(
     escrow.buyerPubkey,
     escrow.sellerPubkey,
@@ -160,14 +138,37 @@ escrows.get("/address/:address/check-payment", async (c) => {
     0,
   );
 
-  if (total < escrow.price) return c.json(escrow);
+  if (total > 0 && total < escrow.price) {
+    await prisma.escrow.updateMany({
+      where: { address, status: "awaitingFunds" },
+      data: { status: "partiallyFunded" },
+    });
 
-  const updatedEscrow = await prisma.escrow.update({
-    where: { address },
-    data: { status: "fundLocked", fundedAt: new Date() },
-  });
+    const updatedEscrow = await prisma.escrow.findFirst({ where: { address } });
+    return c.json(updatedEscrow);
+  }
 
-  return c.json(updatedEscrow);
+  if (total >= escrow.price) {
+    await prisma.escrow.updateMany({
+      where: {
+        address,
+        OR: [
+          {
+            status: "awaitingFunds",
+          },
+
+          {
+            status: "partiallyFunded",
+          },
+        ],
+      },
+      data: { status: "fundLocked" },
+    });
+    const updatedEscrow = await prisma.escrow.findFirst({ where: { address } });
+    return c.json(updatedEscrow);
+  }
+
+  return c.json(escrow);
 });
 
 // === Collaborative path ===
@@ -495,7 +496,7 @@ escrows.get("/address/:address/refund/psbt", async (c) => {
   });
 
   if (vtxos.length === 0) {
-    return c.json({ error: "No spendable VTXOs found" }, 400);
+    return c.json({ error: "No refundable VTXOs found" }, 400);
   }
 
   const inputs = vtxos.map((vtxo: VirtualCoin) => ({
