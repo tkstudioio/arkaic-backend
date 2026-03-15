@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { sValidator } from "@hono/standard-validator";
 import { sign } from "hono/jwt";
-import z, { json } from "zod";
+import z from "zod";
 import crypto from "node:crypto";
 import { schnorr } from "@noble/curves/secp256k1";
 import { hex } from "@scure/base";
@@ -10,7 +10,11 @@ import { toXOnly } from "@/lib/escrow";
 import { isAfter } from "date-fns";
 import { Challenge } from "@/generated/prisma/client";
 
-const JWT_SECRET = process.env.JWT_SECRET!;
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is not set");
+}
 
 export const auth = new Hono();
 
@@ -34,7 +38,7 @@ auth.post(
     );
 
     if (!isValid) {
-      return c.json({ error: "Invalid signature" }, 401);
+      return c.text("Invalid signature", 401);
     }
 
     const account = await prisma.account.upsert({
