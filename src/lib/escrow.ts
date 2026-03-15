@@ -22,7 +22,7 @@ export async function buildEscrowContext(
 
   const refundPath = CLTVMultisigTapscript.encode({
     pubkeys: [buyerPubkey, serverPubkey],
-    absoluteTimelock: timelockExpiry,
+    absoluteTimelock: BigInt(timelockExpiry),
   }).script;
 
   const collaborativePath = MultisigTapscript.encode({
