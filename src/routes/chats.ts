@@ -1,7 +1,7 @@
 import { type AuthEnv, bearerAuth, verifySignature } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Hono } from "hono";
-import { eq } from "lodash";
+import _ from "lodash";
 
 export const chats = new Hono<AuthEnv>();
 
@@ -12,7 +12,7 @@ chats.get("/seller/:listingId", async (c) => {
   const pubkey = c.get("pubkey");
   const listingId = c.req.param("listingId");
 
-  const chat = await prisma.chat.findMany({
+  const chats = await prisma.chat.findMany({
     where: {
       listingId: Number(listingId),
       listing: { sellerPubkey: pubkey },
@@ -24,8 +24,8 @@ chats.get("/seller/:listingId", async (c) => {
     },
   });
 
-  if (!chat) return c.text("Chat not found", 404);
-  return c.json(chat);
+  if (_.isEmpty(chats)) return c.text("Chat not found", 404);
+  return c.json(chats);
 });
 
 // Get a chat's escrow
@@ -37,12 +37,11 @@ chats.get("/:chatId/escrow", async (c) => {
     where: { chatId },
   });
 
-  console.log(escrow);
   if (escrow && escrow.buyerPubkey !== pubkey && escrow.sellerPubkey !== pubkey)
     return c.text("Escrow not found", 404);
 
   if (!escrow) return c.body(null, 204);
-  return c.json(escrow, 201);
+  return c.json(escrow, 200);
 });
 
 // Get a chat's last offer
@@ -50,22 +49,26 @@ chats.get("/:chatId/offer", async (c) => {
   const pubkey = c.get("pubkey");
   const chatId = Number(c.req.param("chatId"));
 
+  const chat = await prisma.chat.findUnique({
+    where: { id: chatId },
+    include: { listing: true },
+  });
+
+  // Check authorization first - return 404 if not authorized to prevent chat existence leak
+  if (
+    !chat ||
+    (chat.buyerPubkey !== pubkey && chat.listing.sellerPubkey !== pubkey)
+  ) {
+    return c.text("Chat not found", 404);
+  }
+
   const offerMessage = await prisma.message.findFirst({
     where: { chatId, offer: { valid: true } },
     include: {
       offer: { include: { acceptance: true } },
-      chat: { include: { listing: true } },
     },
     orderBy: { sentAt: "desc" },
   });
-
-  if (
-    offerMessage?.offer &&
-    offerMessage.chat.buyerPubkey !== pubkey &&
-    offerMessage.chat.listing.sellerPubkey !== pubkey
-  ) {
-    return c.text("Offer not found", 404);
-  }
 
   if (!offerMessage?.offer) return c.body(null, 204);
 

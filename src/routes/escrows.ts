@@ -20,7 +20,20 @@ export const escrows = new Hono<AuthEnv>();
 escrows.use(bearerAuth);
 
 // GET /:chatId - Get a chat's escrow
-escrows.get("/:chatId", async (c) => {});
+escrows.get("/:chatId", async (c) => {
+  const pubkey = c.get("pubkey");
+  const chatId = Number(c.req.param("chatId"));
+
+  const escrow = await prisma.escrow.findFirst({
+    where: {
+      chatId,
+      OR: [{ buyerPubkey: pubkey }, { sellerPubkey: pubkey }],
+    },
+  });
+
+  if (!escrow) return c.json({ error: "Escrow not found" }, 404);
+  return c.json(escrow);
+});
 
 // POST /:chatId — Create escrow after accepted offer
 escrows.post(
@@ -102,7 +115,9 @@ escrows.post(
   },
 );
 
-// GET /:address — Escrow detail
+// GET /address/:address — Escrow detail
+// NOTE: This endpoint has side effects — it queries the Ark indexer and updates escrow state if funding changes.
+// This is intentional for real-time tracking but violates REST principles. Consider this when caching or polling.
 escrows.get("/address/:address", async (c) => {
   const pubkey = c.get("pubkey");
   const address = c.req.param("address");
@@ -592,16 +607,27 @@ escrows.post("/address/:address/refund/submit-signed-psbt", async (c) => {
   const { checkpoints } = buildOffchainTx(inputs, outputs, serverUnrollScript);
   const checkpointPsbts = checkpoints.map((cp: Transaction) => cp.toPSBT());
 
-  const { arkTxid, signedCheckpointTxs } = await arkProvider.submitTx(
-    signedPsbt,
-    checkpointPsbts.map((cp: Uint8Array) => base64.encode(cp)),
-  );
+  try {
+    const { arkTxid, signedCheckpointTxs } = await arkProvider.submitTx(
+      signedPsbt,
+      checkpointPsbts.map((cp: Uint8Array) => base64.encode(cp)),
+    );
 
-  return c.json({ arkTxid, signedCheckpointTxs });
+    // Update escrow state to reflect transaction submission
+    await prisma.escrow.update({
+      where: { address },
+      data: { status: "buyerSubmitted" },
+    });
+
+    return c.json({ arkTxid, signedCheckpointTxs });
+  } catch (e) {
+    console.log(e);
+    return c.json({ error: "Failed to submit transaction" }, 500);
+  }
 });
 
-// POST /:address/refund/finalize
-escrows.post("/:address/refund/finalize", async (c) => {
+// POST /address/:address/refund/finalize
+escrows.post("/address/:address/refund/finalize", async (c) => {
   const pubkey = c.get("pubkey");
   const address = c.req.param("address");
   const { arkTxid, signedCheckpointTxs } = await c.req.json();
@@ -617,11 +643,19 @@ escrows.post("/:address/refund/finalize", async (c) => {
   if (!escrow) return c.json({ error: "Escrow not found" }, 404);
   if (escrow.buyerPubkey !== pubkey) return c.json({ error: "Forbidden" }, 403);
 
-  if (escrow.status === "refunded") {
-    return c.json({ error: "Already refunded" }, 400);
+  // Only allow refund if escrow is in fundLocked or partiallyFunded state
+  if (escrow.status !== "fundLocked" && escrow.status !== "partiallyFunded") {
+    return c.json(
+      { error: `Cannot refund escrow in ${escrow.status} status` },
+      400,
+    );
   }
 
-  await arkProvider.finalizeTx(arkTxid, signedCheckpointTxs);
+  try {
+    await arkProvider.finalizeTx(arkTxid, signedCheckpointTxs);
+  } catch (e) {
+    return c.json({ error: "Failed to finalize transaction" }, 500);
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.escrow.update({

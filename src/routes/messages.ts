@@ -33,7 +33,7 @@ messages.post(
       return c.text("Chat not found", 404);
     }
 
-    if (!body.offeredPrice) {
+    if (body.offeredPrice === undefined) {
       const newMessage = await prisma.message.create({
         data: {
           chatId,
@@ -91,6 +91,7 @@ messages.post(
   async (c) => {
     const pubkey = c.get("pubkey");
     const signature = c.get("signature");
+    const chatId = Number(c.req.param("chatId"));
     const offerId = Number(c.req.param("offerId"));
     const { accepted } = c.req.valid("json");
 
@@ -103,6 +104,11 @@ messages.post(
     });
 
     if (!offer) {
+      return c.text("Offer not found", 404);
+    }
+
+    // Verify the offer belongs to this chat
+    if (offer.message.chatId !== chatId) {
       return c.text("Offer not found", 404);
     }
 
@@ -131,7 +137,18 @@ messages.post(
 );
 
 messages.get("/:chatId/offers/active", async (c) => {
+  const pubkey = c.get("pubkey");
   const chatId = Number(c.req.param("chatId"));
+
+  const chat = await prisma.chat.findUnique({
+    where: { id: chatId },
+    include: { listing: true },
+  });
+
+  // Verify user is buyer or seller of this chat
+  if (!chat || (chat.buyerPubkey !== pubkey && chat.listing.sellerPubkey !== pubkey)) {
+    return c.text("Chat not found", 404);
+  }
 
   const offer = await prisma.offer.findFirst({
     where: { message: { chatId }, valid: true },

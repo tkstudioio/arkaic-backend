@@ -38,23 +38,23 @@ listings.post(
 );
 
 listings.get("/", async (c) => {
-  const loggerPubkey = c.get("pubkey");
+  const pubkey = c.get("pubkey");
 
-  const listings = await prisma.listing.findMany({
+  const allListings = await prisma.listing.findMany({
     where: {
-      sellerPubkey: { not: loggerPubkey },
+      sellerPubkey: { not: pubkey },
     },
     include: { seller: true },
   });
 
-  return c.json(listings);
+  return c.json(allListings);
 });
 
 listings.get("/my-listings", async (c) => {
-  const loggerPubkey = c.get("pubkey");
+  const pubkey = c.get("pubkey");
 
   const myListings = await prisma.listing.findMany({
-    where: { sellerPubkey: loggerPubkey },
+    where: { sellerPubkey: pubkey },
     include: { seller: true },
   });
 
