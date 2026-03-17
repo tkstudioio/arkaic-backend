@@ -1,7 +1,6 @@
 import { type AuthEnv, bearerAuth, verifySignature } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Hono } from "hono";
-import _ from "lodash";
 
 export const chats = new Hono<AuthEnv>();
 
@@ -24,7 +23,6 @@ chats.get("/seller/:listingId", async (c) => {
     },
   });
 
-  if (_.isEmpty(chats)) return c.text("Chat not found", 404);
   return c.json(chats);
 });
 
@@ -33,14 +31,33 @@ chats.get("/:chatId/escrow", async (c) => {
   const pubkey = c.get("pubkey");
   const chatId = Number(c.req.param("chatId"));
 
+  const chat = await prisma.chat.findFirst({
+    where: {
+      id: chatId,
+      OR: [
+        {
+          buyerPubkey: pubkey,
+        },
+        {
+          listing: { sellerPubkey: pubkey },
+        },
+      ],
+    },
+    include: { listing: true },
+  });
+
+  if (
+    !chat ||
+    (chat.buyerPubkey !== pubkey && chat.listing.sellerPubkey !== pubkey)
+  ) {
+    return c.text("Chat not found", 404);
+  }
+
   const escrow = await prisma.escrow.findUnique({
     where: { chatId },
   });
 
-  if (escrow && escrow.buyerPubkey !== pubkey && escrow.sellerPubkey !== pubkey)
-    return c.text("Escrow not found", 404);
-
-  if (!escrow) return c.body(null, 204);
+  if (!escrow) return c.text("Escrow not found", 404);
   return c.json(escrow, 200);
 });
 
@@ -109,8 +126,18 @@ chats.get("/:chatId", async (c) => {
 // Create a chat for a specific listing
 chats.post("/:listingId", verifySignature, async (c) => {
   const buyerPubkey = c.get("pubkey");
-  const signature = c.get("signature");
+  const signature = c.get("signature")!;
   const listingId = c.req.param("listingId");
+
+  const listing = await prisma.listing.findUnique({
+    where: { id: Number(listingId) },
+  });
+
+  if (!listing) return c.text("Listing not found", 404);
+
+  if (buyerPubkey === listing.sellerPubkey) {
+    return c.text("Cannot create a chat on your own listing", 403);
+  }
 
   const existingChat = await prisma.chat.findFirst({
     where: {

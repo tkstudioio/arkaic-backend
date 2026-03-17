@@ -48,6 +48,6 @@ All Ark transactions follow: build PSBT → sign → `submitTx` → sign checkpo
 
 - Route handlers use Hono's `c` context (e.g., `c.json()`, `c.text()`, `c.req.json()`)
 - Pubkeys are hex-encoded, converted to x-only (32 bytes) via `toXOnly()` before use in tapscripts
-- All `.js` extensions in imports are required (ESM resolution)
+- Use `@/` path aliases for imports (e.g., `@/lib/prisma`, `@/routes/ws`) — resolved by tsx at runtime
 - `@arkade-os/sdk` provides all Ark/Bitcoin primitives (`VtxoScript`, `MultisigTapscript`, `CLTVMultisigTapscript`, `buildOffchainTx`, etc.)
 - `@scure/base` for `hex`/`base64` encoding

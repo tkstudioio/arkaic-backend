@@ -19,7 +19,7 @@ listings.post(
   async (c) => {
     const { dust } = await arkProvider.getInfo();
     const sellerPubkey = c.get("pubkey");
-    const signature = c.get("signature");
+    const signature = c.get("signature")!;
 
     const listing = c.req.valid("json");
 
@@ -39,12 +39,17 @@ listings.post(
 
 listings.get("/", async (c) => {
   const pubkey = c.get("pubkey");
+  const take = Math.min(Number(c.req.query("limit")) || 20, 100);
+  const skip = Number(c.req.query("offset")) || 0;
 
   const allListings = await prisma.listing.findMany({
     where: {
       sellerPubkey: { not: pubkey },
     },
     include: { seller: true },
+    take,
+    skip,
+    orderBy: { id: "desc" },
   });
 
   return c.json(allListings);

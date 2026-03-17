@@ -57,7 +57,6 @@ CREATE TABLE "Chat" (
     "signature" TEXT NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'open',
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "escrowAddress" TEXT,
     CONSTRAINT "Chat_listingId_fkey" FOREIGN KEY ("listingId") REFERENCES "Listing" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "Chat_buyerPubkey_fkey" FOREIGN KEY ("buyerPubkey") REFERENCES "Account" ("pubkey") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "Chat_arbiterPubkey_fkey" FOREIGN KEY ("arbiterPubkey") REFERENCES "Account" ("pubkey") ON DELETE SET NULL ON UPDATE CASCADE
@@ -68,11 +67,12 @@ CREATE TABLE "Message" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "chatId" INTEGER NOT NULL,
     "message" TEXT,
-    "senderPubkey" TEXT NOT NULL,
-    "signature" TEXT NOT NULL,
+    "senderPubkey" TEXT,
+    "signature" TEXT,
+    "isSystem" BOOLEAN NOT NULL DEFAULT false,
     "sentAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "Message_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "Chat" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT "Message_senderPubkey_fkey" FOREIGN KEY ("senderPubkey") REFERENCES "Account" ("pubkey") ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "Message_senderPubkey_fkey" FOREIGN KEY ("senderPubkey") REFERENCES "Account" ("pubkey") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- CreateTable

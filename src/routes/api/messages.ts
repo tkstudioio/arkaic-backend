@@ -1,5 +1,6 @@
 import { type AuthEnv, bearerAuth, verifySignature } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendToUser } from "@/routes/ws";
 import { sValidator } from "@hono/standard-validator";
 import { Hono } from "hono";
 import z from "zod";
@@ -20,7 +21,7 @@ messages.post(
   ),
   async (c) => {
     const senderPubkey = c.get("pubkey");
-    const signature = c.get("signature");
+    const signature = c.get("signature")!;
     const chatId = Number(c.req.param("chatId"));
     const body = c.req.valid("json");
 
@@ -33,6 +34,13 @@ messages.post(
       return c.text("Chat not found", 404);
     }
 
+    if (
+      senderPubkey !== chat.buyerPubkey &&
+      senderPubkey !== chat.listing.sellerPubkey
+    ) {
+      return c.text("Forbidden", 403);
+    }
+
     if (body.offeredPrice === undefined) {
       const newMessage = await prisma.message.create({
         data: {
@@ -42,6 +50,10 @@ messages.post(
           signature,
         },
       });
+
+      const notification = { type: "new_message", chatId };
+      sendToUser(chat.buyerPubkey, notification);
+      sendToUser(chat.listing.sellerPubkey, notification);
 
       return c.json(newMessage);
     }
@@ -75,6 +87,14 @@ messages.post(
       return { ...newMessage, offer };
     });
 
+    const notification = {
+      type: "new_offer",
+      chatId,
+      price: body.offeredPrice,
+    };
+    sendToUser(chat.buyerPubkey, notification);
+    sendToUser(chat.listing.sellerPubkey, notification);
+
     return c.json(result);
   },
 );
@@ -90,7 +110,7 @@ messages.post(
   ),
   async (c) => {
     const pubkey = c.get("pubkey");
-    const signature = c.get("signature");
+    const signature = c.get("signature")!;
     const chatId = Number(c.req.param("chatId"));
     const offerId = Number(c.req.param("offerId"));
     const { accepted } = c.req.valid("json");
@@ -132,6 +152,14 @@ messages.post(
       },
     });
 
+    const notification = {
+      type: accepted ? "offer_accepted" : "offer_rejected",
+      chatId,
+      offerId,
+    };
+    sendToUser(offer.message.chat.buyerPubkey, notification);
+    sendToUser(offer.message.chat.listing.sellerPubkey, notification);
+
     return c.json(acceptance);
   },
 );
@@ -146,7 +174,10 @@ messages.get("/:chatId/offers/active", async (c) => {
   });
 
   // Verify user is buyer or seller of this chat
-  if (!chat || (chat.buyerPubkey !== pubkey && chat.listing.sellerPubkey !== pubkey)) {
+  if (
+    !chat ||
+    (chat.buyerPubkey !== pubkey && chat.listing.sellerPubkey !== pubkey)
+  ) {
     return c.text("Chat not found", 404);
   }
 

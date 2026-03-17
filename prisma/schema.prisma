@@ -100,8 +100,7 @@ model Chat {
 
   messages Message[]
 
-  escrowAddress String?
-  escrow        Escrow?
+  escrow Escrow?
 }
 
 model Message {
@@ -109,9 +108,10 @@ model Message {
   chatId       Int
   chat         Chat     @relation(fields: [chatId], references: [id])
   message      String?
-  senderPubkey String
-  sender       Account  @relation(fields: [senderPubkey], references: [pubkey])
-  signature    String
+  senderPubkey String?
+  sender       Account? @relation(fields: [senderPubkey], references: [pubkey])
+  signature    String?
+  isSystem     Boolean  @default(false)
   sentAt       DateTime @default(now())
 
   offer Offer?

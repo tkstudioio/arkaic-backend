@@ -5,7 +5,7 @@ import { createMiddleware } from "hono/factory";
 import { verify } from "hono/jwt";
 import { prisma } from "./prisma";
 
-export type AuthEnv = { Variables: { pubkey: string; signature: string } };
+export type AuthEnv = { Variables: { pubkey: string; signature?: string } };
 
 export const bearerAuth = createMiddleware<AuthEnv>(async (c, next) => {
   const jwt = c.req.header("Authorization")?.replace("Bearer ", "");
@@ -57,8 +57,6 @@ export const verifySignature = createMiddleware<AuthEnv>(async (c, next) => {
     toXOnly(hex.decode(pubkey)),
   );
 
-  console.log(pubkey);
-  console.log(sortedValues);
   if (!isValid) return c.text("Invalid signature", 401);
 
   c.set("signature", signature);

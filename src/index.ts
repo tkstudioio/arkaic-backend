@@ -2,26 +2,22 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
-import { auth } from "@/routes/auth";
-import { listings } from "@/routes/listings";
-import { chats } from "@/routes/chats";
-import { messages } from "@/routes/messages";
-import { escrows } from "@/routes/escrows";
+import { setupWebSocket } from "@/routes/ws";
+import { api } from "@/routes/api";
 
 const app = new Hono();
 
 app.use("*", cors());
 
-app.route("/chats", chats);
-app.route("/messages", messages);
-app.route("/listings", listings);
-app.route("/escrows", escrows);
-app.route("/auth", auth);
+app.route("/api", api);
+const { injectWebSocket } = setupWebSocket(app);
 
 const port = Number(process.env.PORT) || 3000;
 
-serve({ fetch: app.fetch, port }, async () => {
+const server = serve({ fetch: app.fetch, port }, () => {
   console.log(`Server running on port ${port}`);
 });
+
+injectWebSocket(server);
 
 export default app;

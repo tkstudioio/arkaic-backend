@@ -1,0 +1,14 @@
+import { Hono } from "hono";
+
+import { auth } from "@/routes/api/auth";
+import { listings } from "@/routes/api/listings";
+import { chats } from "@/routes/api/chats";
+import { messages } from "@/routes/api/messages";
+import { escrows } from "@/routes/api/escrows";
+
+export const api = new Hono();
+api.route("/chats", chats);
+api.route("/messages", messages);
+api.route("/listings", listings);
+api.route("/escrows", escrows);
+api.route("/auth", auth);
