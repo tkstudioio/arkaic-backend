@@ -1,5 +1,6 @@
 import { type AuthEnv, bearerAuth, verifySignature } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { createSystemMessage } from "@/lib/system-messages";
 import { sendToUser } from "@/routes/ws";
 import { sValidator } from "@hono/standard-validator";
 import { Hono } from "hono";
@@ -84,6 +85,13 @@ messages.post(
         },
       });
 
+      await createSystemMessage(
+        tx,
+        chatId,
+        `Offer of ${body.offeredPrice} sats submitted`,
+        [chat.buyerPubkey, chat.listing.sellerPubkey],
+      );
+
       return { ...newMessage, offer };
     });
 
@@ -144,12 +152,24 @@ messages.post(
       return c.text("Only the seller can respond to offers", 403);
     }
 
-    const acceptance = await prisma.offerAcceptance.create({
-      data: {
-        offerId,
-        signature,
-        accepted,
-      },
+    const acceptance = await prisma.$transaction(async (tx) => {
+      const acc = await tx.offerAcceptance.create({
+        data: {
+          offerId,
+          signature,
+          accepted,
+        },
+      });
+
+      const statusText = accepted ? "accepted" : "rejected";
+      await createSystemMessage(
+        tx,
+        chatId,
+        `Offer ${statusText}`,
+        [offer.message.chat.buyerPubkey, offer.message.chat.listing.sellerPubkey],
+      );
+
+      return acc;
     });
 
     const notification = {

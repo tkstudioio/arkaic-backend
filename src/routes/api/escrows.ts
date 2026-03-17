@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { type AuthEnv, bearerAuth, verifySignature } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildEscrowContext, buildEscrowTransaction } from "@/lib/escrow";
+import { createSystemMessage } from "@/lib/system-messages";
 import { sendToUser } from "@/routes/ws";
 import { arkProvider, indexerProvider } from "@/lib/ark";
 import { hex } from "@scure/base";
@@ -116,10 +117,21 @@ escrows.post(
       offerId: offer?.id,
     };
 
-    const newEscrow = await prisma.escrow.upsert({
-      where: { chatId: chat.id },
-      update: newEscrowValues,
-      create: newEscrowValues,
+    const newEscrow = await prisma.$transaction(async (tx) => {
+      const esc = await tx.escrow.upsert({
+        where: { chatId: chat.id },
+        update: newEscrowValues,
+        create: newEscrowValues,
+      });
+
+      await createSystemMessage(
+        tx,
+        chatId,
+        `Escrow created at address ${address}`,
+        [buyerPubkey, sellerPubkey],
+      );
+
+      return esc;
     });
 
     notifyEscrowUpdate(newEscrow);
@@ -160,22 +172,48 @@ escrows.get("/address/:address", async (c) => {
     );
 
     if (total > 0 && total < escrow.price) {
-      const updatedEscrow = await prisma.escrow.update({
-        where: { address, status: "awaitingFunds" },
-        data: { status: "partiallyFunded" },
-      });
-      return c.json(updatedEscrow);
+      try {
+        const updatedEscrow = await prisma.$transaction(async (tx) => {
+          const esc = await tx.escrow.update({
+            where: { address, status: "awaitingFunds" },
+            data: { status: "partiallyFunded" },
+          });
+          await createSystemMessage(
+            tx,
+            escrow.chatId,
+            `Escrow partially funded (${total} of ${escrow.price} sats)`,
+            [escrow.buyerPubkey, escrow.sellerPubkey],
+          );
+          return esc;
+        });
+        return c.json(updatedEscrow);
+      } catch {
+        return c.json(escrow);
+      }
     }
 
     if (total >= escrow.price) {
-      const updatedEscrow = await prisma.escrow.update({
-        where: {
-          address,
-          status: { in: ["awaitingFunds", "partiallyFunded"] },
-        },
-        data: { status: "fundLocked" },
-      });
-      return c.json(updatedEscrow);
+      try {
+        const updatedEscrow = await prisma.$transaction(async (tx) => {
+          const esc = await tx.escrow.update({
+            where: {
+              address,
+              status: { in: ["awaitingFunds", "partiallyFunded"] },
+            },
+            data: { status: "fundLocked" },
+          });
+          await createSystemMessage(
+            tx,
+            escrow.chatId,
+            "Escrow fully funded. Funds are now locked.",
+            [escrow.buyerPubkey, escrow.sellerPubkey],
+          );
+          return esc;
+        });
+        return c.json(updatedEscrow);
+      } catch {
+        return c.json(escrow);
+      }
     }
   } catch (e) {
     return c.json({ error: "Failed to check escrow funding" }, 502);
@@ -230,12 +268,21 @@ escrows.post(
     if (escrow.sellerPubkey !== pubkey)
       return c.json({ error: "Forbidden" }, 403);
 
-    await prisma.escrow.update({
-      where: { address },
-      data: {
-        sellerSignedCollabPsbt: signedPsbt,
-        status: "sellerReady",
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.escrow.update({
+        where: { address },
+        data: {
+          sellerSignedCollabPsbt: signedPsbt,
+          status: "sellerReady",
+        },
+      });
+
+      await createSystemMessage(
+        tx,
+        escrow.chatId,
+        "Escrow status: seller ready",
+        [escrow.buyerPubkey, escrow.sellerPubkey],
+      );
     });
 
     notifyEscrowUpdate(escrow);
@@ -290,13 +337,24 @@ escrows.post(
         result.checkpointPsbts,
       );
 
-      await prisma.escrow.update({
-        where: { address },
-        data: {
-          collabArkTxid: arkTxid,
-          serverSignedCheckpoints: JSON.stringify(signedCheckpointTxs),
-          status: "buyerSubmitted",
-        },
+      await prisma.$transaction(async (tx) => {
+        const esc = await tx.escrow.update({
+          where: { address },
+          data: {
+            collabArkTxid: arkTxid,
+            serverSignedCheckpoints: JSON.stringify(signedCheckpointTxs),
+            status: "buyerSubmitted",
+          },
+        });
+
+        await createSystemMessage(
+          tx,
+          escrow.chatId,
+          "Escrow status: buyer submitted",
+          [escrow.buyerPubkey, escrow.sellerPubkey],
+        );
+
+        return esc;
       });
 
       notifyEscrowUpdate(escrow);
@@ -326,12 +384,21 @@ escrows.post(
       return c.json({ error: "Transaction not submitted yet" }, 400);
     }
 
-    await prisma.escrow.update({
-      where: { address },
-      data: {
-        buyerSignedCheckpoints: JSON.stringify(signedCheckpointTxs),
-        status: "buyerCheckpointsSigned",
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.escrow.update({
+        where: { address },
+        data: {
+          buyerSignedCheckpoints: JSON.stringify(signedCheckpointTxs),
+          status: "buyerCheckpointsSigned",
+        },
+      });
+
+      await createSystemMessage(
+        tx,
+        escrow.chatId,
+        "Escrow status: buyer checkpoints signed",
+        [escrow.buyerPubkey, escrow.sellerPubkey],
+      );
     });
 
     notifyEscrowUpdate(escrow);
@@ -394,6 +461,12 @@ escrows.post(
         where: { id: escrow.chatId },
         data: { status: "closed" },
       });
+      await createSystemMessage(
+        tx,
+        escrow.chatId,
+        "Escrow completed. Funds released to seller.",
+        [escrow.buyerPubkey, escrow.sellerPubkey],
+      );
     });
 
     notifyEscrowUpdate(escrow);
@@ -500,6 +573,12 @@ escrows.post(
         where: { id: escrow.chatId },
         data: { status: "closed" },
       });
+      await createSystemMessage(
+        tx,
+        escrow.chatId,
+        "Escrow refunded. Funds returned to buyer.",
+        [escrow.buyerPubkey, escrow.sellerPubkey],
+      );
     });
 
     notifyEscrowUpdate(escrow);
