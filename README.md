@@ -1,19 +1,15 @@
 # Arkaic Backend
 
-Backend API TypeScript (Hono + Prisma + SQLite) per gestire un flusso escrow su Ark (mutinynet) tra seller e buyer.
+Backend API TypeScript (Hono + Prisma + SQLite) per un marketplace di escrow Bitcoin basato sul protocollo Ark (mutinynet). I buyer e seller negoziavano tramite chat e offer, quindi finalizzano gli scambi attraverso un flusso escrow multi-firma con due path: collaborative (entrambi firmano) e refund (timelock).
 
-Il progetto permette di:
-- creare listing con prezzo e pubkey del seller;
-- avviare un acquisto con pubkey del buyer;
-- generare un BIP21 da pagare lato client;
-- verificare il pagamento;
-- dopo la scadenza del timelock, ottenere e processare il refund tramite PSBT.
+**Documentazione completa:** Vedi [`docs/`](docs/) per guide dettagliate su endpoint, flussi e modello dati.
 
 ## Stack
 
-- Hono (`src/index.ts`)
-- Prisma + SQLite (`dev.db`)
-- Ark SDK (`@arkade-os/sdk`)
+- **Framework:** Hono (lightweight web framework, ESM-only)
+- **Database:** Prisma + SQLite (`dev.db`)
+- **Crypto:** `@noble/curves/secp256k1` (Schnorr signatures), `@arkade-os/sdk` (Ark Bitcoin primitives)
+- **Runtime:** Node.js with `@hono/node-server`
 
 ## Requisiti
 
@@ -43,141 +39,156 @@ PORT=3000
 DATABASE_URL="file:./dev.db"
 ```
 
-## Modello dati principale
+## Flussi Principali
 
-`Listing`:
-- `id`
-- `nome`
-- `prezzo` (in satoshi)
-- `sellerPubkey`
-- `escrowAddress`
-- `buyerPubkey`
-- `refundRecipientAddress`
-- `timelockExpiry`
-- `status`: `awaitingFunds | fundLocked | refunded | payed`
+### Flusso Collaborative Release
 
-Nota: il timelock nel codice è impostato a 60 secondi (`/buy`, valore utile per test).
+Buyer e seller cooperano per rilasciare i fondi al seller:
 
-## Endpoint principali
+1. Buyer crea escrow e invia fondi all'indirizzo escrow
+2. Seller richiede PSBT, firma e invia
+3. Buyer riceve PSBT, firma completamente e invia ad Ark
+4. Buyer firma checkpoint, seller li recupera e finalizza
+5. Fondi rilasciati al seller
 
-- `GET /listings` lista listing
-- `POST /listings` crea listing
-- `POST /listings/:listingId/buy` avvia buy, salva escrow e ritorna BIP21
-- `GET /listings/:listingId/check-payment` verifica fondi e, se scaduto timelock, ritorna `refundPsbt`
-- `POST /listings/:listingId/claim` invia PSBT firmata buyer, ottiene checkpoint da firmare
-- `POST /listings/:listingId/finalize` finalizza refund con checkpoint firmati
-- `GET /listings/:listingId/refund-status` stato fondi sul recipient di refund
+**Documentazione:** [docs/flow-collaborative-release.md](docs/flow-collaborative-release.md)
 
-## Flusso pratico end-to-end
+### Flusso Refund
 
-Esempio con `curl`.
+Buyer recupera i fondi se il seller scompare o dopo scadenza timelock:
 
-### 1) Creo un listing
+1. Buyer richiede refund PSBT
+2. Buyer firma e invia ad Ark
+3. Buyer firma checkpoint
+4. Buyer finalizza
+5. Fondi restituiti al buyer
 
-```bash
-curl -X POST http://localhost:3000/listings \
-  -H "Content-Type: application/json" \
-  -d '{
-    "nome": "Oggetto demo",
-    "prezzo": 1000,
-    "sellerPubkey": "<SELLER_PUBKEY_HEX>"
-  }'
+**Documentazione:** [docs/flow-refund.md](docs/flow-refund.md)
+
+## API Reference
+
+Tutti gli endpoint richiedono autenticazione via Bearer token (tranne `/api/auth/register`, `/api/auth/challenge` e `/api/auth/login`).
+
+### Autenticazione
+
+| Metodo | Endpoint              | Descrizione                                   |
+| ------ | --------------------- | --------------------------------------------- |
+| POST   | `/api/auth/register`  | Registra account con firma Schnorr            |
+| POST   | `/api/auth/challenge` | Richiedi challenge (nonce) per login          |
+| POST   | `/api/auth/login`     | Completa login con nonce e firma, ottieni JWT |
+
+[Dettagli completi](docs/api-auth.md)
+
+### Listing
+
+| Metodo | Endpoint                    | Descrizione                                    |
+| ------ | --------------------------- | ---------------------------------------------- |
+| GET    | `/api/listings`             | Lista listing (esclusi propri) con paginazione |
+| POST   | `/api/listings`             | Crea nuovo listing                             |
+| GET    | `/api/listings/my-listings` | Elenca propri listing                          |
+| GET    | `/api/listings/:id`         | Dettagli listing specifico                     |
+
+[Dettagli completi](docs/api-listings.md)
+
+### Chat
+
+| Metodo | Endpoint                       | Descrizione                |
+| ------ | ------------------------------ | -------------------------- |
+| POST   | `/api/chats/:listingId`        | Inizia chat con seller     |
+| GET    | `/api/chats/:chatId`           | Dettagli chat con messaggi |
+| GET    | `/api/chats/:chatId/escrow`    | Escrow associato a chat    |
+| GET    | `/api/chats/:chatId/offer`     | Ultima offer valida        |
+| GET    | `/api/chats/seller/:listingId` | Chat in cui sei seller     |
+
+[Dettagli completi](docs/api-chats.md)
+
+### Messaggi e Offer
+
+| Metodo | Endpoint                                        | Descrizione             |
+| ------ | ----------------------------------------------- | ----------------------- |
+| POST   | `/api/messages/:chatId`                         | Invia messaggio o offer |
+| POST   | `/api/messages/:chatId/offers/:offerId/respond` | Accetta/rifiuta offer   |
+| GET    | `/api/messages/:chatId/offers/active`           | Offer attuale           |
+
+[Dettagli completi](docs/api-messages.md)
+
+### Escrow e Flussi di Pagamento
+
+| Metodo                 | Endpoint                                                            | Descrizione                                           |
+| ---------------------- | ------------------------------------------------------------------- | ----------------------------------------------------- |
+| POST                   | `/api/escrows/:chatId`                                              | Crea escrow dopo offer accettata                      |
+| GET                    | `/api/escrows/:chatId`                                              | Dettagli escrow by chat                               |
+| GET                    | `/api/escrows/address/:address`                                     | Dettagli escrow by indirizzo (aggiorna stato funding) |
+| **Collaborative Path** |                                                                     |                                                       |
+| GET                    | `/api/escrows/address/:address/collaborate/seller-psbt`             | Seller richiede PSBT                                  |
+| POST                   | `/api/escrows/address/:address/collaborate/seller-submit-psbt`      | Seller invia PSBT firmato                             |
+| GET                    | `/api/escrows/address/:address/collaborate/buyer-psbt`              | Buyer riceve PSBT                                     |
+| POST                   | `/api/escrows/address/:address/collaborate/buyer-submit-psbt`       | Buyer invia PSBT firmato ad Ark                       |
+| POST                   | `/api/escrows/address/:address/collaborate/buyer-sign-checkpoints`  | Buyer firma checkpoint                                |
+| GET                    | `/api/escrows/address/:address/collaborate/seller-checkpoints`      | Seller riceve checkpoint                              |
+| POST                   | `/api/escrows/address/:address/collaborate/seller-sign-checkpoints` | Seller finalizza (on-chain)                           |
+| **Refund Path**        |                                                                     |                                                       |
+| GET                    | `/api/escrows/address/:address/refund/psbt`                         | Buyer richiede refund PSBT                            |
+| POST                   | `/api/escrows/address/:address/refund/submit-signed-psbt`           | Buyer invia PSBT ad Ark                               |
+| POST                   | `/api/escrows/address/:address/refund/finalize`                     | Buyer finalizza refund (on-chain)                     |
+
+[Dettagli completi](docs/api-escrows.md)
+
+### WebSocket
+
+| Metodo | Endpoint          | Descrizione                       |
+| ------ | ----------------- | --------------------------------- |
+| GET    | `/ws?token=<JWT>` | WebSocket per notifiche real-time |
+
+Notifiche: `new_message`, `new_offer`, `offer_accepted`, `offer_rejected`, `escrow_update`
+
+[Dettagli completi](docs/api-websocket.md)
+
+## Modello Dati
+
+Il database usa SQLite via Prisma ORM. Principali entità:
+
+- **Account:** Utenti identificati dalla chiave pubblica Schnorr
+- **Listing:** Prodotti in vendita con nome, prezzo e seller
+- **Chat:** Conversazione tra buyer e seller per una listing
+- **Message:** Messaggi e offer dentro una chat
+- **Offer/OfferAcceptance:** Proposta prezzo e risposta del seller
+- **Escrow:** Contratto multi-firma che detiene i fondi
+- **Review:** Valutazioni post-transazione
+
+[Schema completo](docs/data-model.md)
+
+## Architettura
+
+```
+src/
+  index.ts              # Entry point, monta router
+  routes/
+    api/
+      index.ts          # Composizione sub-router API
+      auth.ts           # Autenticazione e login
+      listings.ts       # CRUD listing
+      chats.ts          # Gestione chat
+      messages.ts       # Messaggi e offer
+      escrows.ts        # Escrow e flussi di pagamento
+    ws.ts               # WebSocket per notifiche
+  lib/
+    auth.ts             # Middleware autenticazione
+    escrow.ts           # Builder PSBT e context
+    ark.ts              # Provider Ark (REST API)
+    prisma.ts           # Singleton Prisma client
+  generated/
+    prisma/             # Generated Prisma client (auto)
+prisma/
+  schema.prisma         # Schema SQLite
 ```
 
-Risposta: contiene `id` del listing.
+## Note Operative
 
-### 2) Faccio buy con la pubkey buyer e ottengo BIP21
-
-```bash
-curl -X POST http://localhost:3000/listings/1/buy \
-  -H "Content-Type: application/json" \
-  -d '{
-    "buyerPubkey": "<BUYER_PUBKEY_HEX>",
-    "refundRecipientAddress": "<ARK_REFUND_ADDRESS>"
-  }'
-```
-
-Risposta tipica:
-- `escrowAddress`
-- `refundRecipientAddress`
-- `bip21` (da incollare nel client wallet)
-
-### 3) Incollo BIP21 sul client e pago
-
-- Usa il valore `bip21` ritornato dal backend.
-- Completa il pagamento dal client.
-
-### 4) Torno sul backend e faccio check-payment
-
-```bash
-curl http://localhost:3000/listings/1/check-payment
-```
-
-Campi utili:
-- `paid`: `true/false`
-- `status`: passa a `fundLocked` quando i fondi sono presenti
-- `timelockExpired`: `true/false`
-- `refundPsbt`: valorizzata solo quando `paid=true` e timelock scaduto
-
-### 5) Attendo la scadenza e recupero la PSBT
-
-Rilancia `check-payment` fino a quando:
-- `timelockExpired = true`
-- `refundPsbt` non è `null/undefined`
-
-### 6) Firmo la PSBT lato client
-
-- Prendi `refundPsbt` dalla risposta del backend.
-- Firma lato client con la chiave buyer.
-- Ottieni `signedPsbt`.
-
-### 7) Chiamo /claim con la PSBT firmata
-
-```bash
-curl -X POST http://localhost:3000/listings/1/claim \
-  -H "Content-Type: application/json" \
-  -d '{
-    "signedPsbt": "<SIGNED_PSBT_BASE64>"
-  }'
-```
-
-Risposta tipica:
-- `arkTxid`
-- `signedCheckpointTxs` (da firmare lato buyer)
-- `nextStep`
-
-### 8) Firmo anche i checkpoint lato client
-
-- Firma gli elementi di `signedCheckpointTxs` con la chiave buyer.
-- Ottieni `signedCheckpoints` (o `signedCheckpointTxs` già firmati buyer).
-
-### 9) Chiamo /finalize
-
-```bash
-curl -X POST http://localhost:3000/listings/1/finalize \
-  -H "Content-Type: application/json" \
-  -d '{
-    "arkTxid": "<ARK_TXID>",
-    "signedCheckpoints": ["<SIGNED_CP_1>", "<SIGNED_CP_2>"]
-  }'
-```
-
-Risposta: `{ "success": true, "arkTxid": "..." }` e listing aggiornato a `refunded`.
-
-### 10) Verifica stato refund
-
-```bash
-curl http://localhost:3000/listings/1/refund-status
-```
-
-Controlla:
-- `listingStatus`
-- `totalReceived`
-- `spendableVtxoCount`
-
-## Note operative
-
-- Le pubkey devono essere hex valide (33-byte compressed o x-only).
-- `prezzo` è trattato in satoshi, mentre nel BIP21 viene convertito in BTC.
-- `refundRecipientAddress` è obbligatorio in `/buy`.
-- Questo backend usa mutinynet (`https://mutinynet.arkade.sh`).
+- **Rete:** Utilizza mutinynet Ark (`https://mutinynet.arkade.sh`)
+- **Pubkey:** Hex-encoded, 33-byte compressed o 32-byte x-only
+- **Prezzi:** In satoshi (1 BTC = 100,000,000 sat)
+- **JWT:** Token valido 1 ora, incluso in `Authorization: Bearer <TOKEN>`
+- **Schnorr:** Tutti i dati critici sono firmati per non-repudiation
+- **Escrow address:** Deterministica dalla coppia (buyer, seller, timelock)
+- **CLTV Timelock:** Embedded nel refund path, non modificabile dopo creazione escrow
