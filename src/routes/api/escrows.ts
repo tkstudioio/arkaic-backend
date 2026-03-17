@@ -14,6 +14,68 @@ export const escrows = new Hono<AuthEnv>();
 
 escrows.use(bearerAuth);
 
+const FUNDING_POLL_INTERVAL_MS = 3000;
+const FUNDING_POLL_TIMEOUT_MS = 30000;
+
+async function checkAndUpdateFunding(
+  escrow: {
+    address: string;
+    buyerPubkey: string;
+    sellerPubkey: string;
+    timelockExpiry: number;
+    price: number;
+    chatId: number;
+    status: string;
+  },
+): Promise<{ updated: boolean; escrow: typeof escrow; total: number }> {
+  const { escrowScript } = await buildEscrowContext(
+    escrow.buyerPubkey,
+    escrow.sellerPubkey,
+    escrow.timelockExpiry,
+  );
+
+  const { vtxos } = await indexerProvider.getVtxos({
+    scripts: [hex.encode(escrowScript.pkScript)],
+  });
+
+  const total = (vtxos as VirtualCoin[]).reduce(
+    (acc, vtxo) => acc + vtxo.value,
+    0,
+  );
+
+  if (total <= 0) {
+    return { updated: false, escrow, total };
+  }
+
+  const newStatus = total < escrow.price ? "partiallyFunded" : "fundLocked";
+  const systemMsg =
+    newStatus === "partiallyFunded"
+      ? `Escrow partially funded (${total} of ${escrow.price} sats)`
+      : "Escrow fully funded. Funds are now locked.";
+
+  try {
+    const updatedEscrow = await prisma.$transaction(async (tx) => {
+      const esc = await tx.escrow.update({
+        where: {
+          address: escrow.address,
+          status: { in: ["awaitingFunds", "partiallyFunded"] },
+        },
+        data: { status: newStatus },
+      });
+      await createSystemMessage(
+        tx,
+        escrow.chatId,
+        systemMsg,
+        [escrow.buyerPubkey, escrow.sellerPubkey],
+      );
+      return esc;
+    });
+    return { updated: true, escrow: updatedEscrow as typeof escrow, total };
+  } catch {
+    return { updated: false, escrow, total };
+  }
+}
+
 function notifyEscrowUpdate(escrow: {
   buyerPubkey: string;
   sellerPubkey: string;
@@ -136,7 +198,29 @@ escrows.post(
 
     notifyEscrowUpdate(newEscrow);
 
-    return c.json(newEscrow, 201);
+    // Long-poll: wait for first VTXO payment before responding
+    const deadline = Date.now() + FUNDING_POLL_TIMEOUT_MS;
+    let currentEscrow: typeof newEscrow = newEscrow;
+
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, FUNDING_POLL_INTERVAL_MS));
+
+      try {
+        const result = await checkAndUpdateFunding(currentEscrow);
+        if (result.total > 0) {
+          if (result.updated) {
+            notifyEscrowUpdate(result.escrow);
+            currentEscrow = result.escrow as typeof newEscrow;
+          }
+          return c.json(currentEscrow, 201);
+        }
+      } catch {
+        // Indexer query failed -- continue polling, do not abort the request
+      }
+    }
+
+    // Timeout: no VTXO detected, return escrow in current state (awaitingFunds)
+    return c.json(currentEscrow, 201);
   },
 );
 
@@ -156,70 +240,14 @@ escrows.get("/address/:address", async (c) => {
   if (!escrow) return c.text("Escrow not found", 404);
 
   try {
-    const { escrowScript } = await buildEscrowContext(
-      escrow.buyerPubkey,
-      escrow.sellerPubkey,
-      escrow.timelockExpiry,
-    );
-
-    const { vtxos } = await indexerProvider.getVtxos({
-      scripts: [hex.encode(escrowScript.pkScript)],
-    });
-
-    const total = (vtxos as VirtualCoin[]).reduce(
-      (acc, vtxo) => acc + vtxo.value,
-      0,
-    );
-
-    if (total > 0 && total < escrow.price) {
-      try {
-        const updatedEscrow = await prisma.$transaction(async (tx) => {
-          const esc = await tx.escrow.update({
-            where: { address, status: "awaitingFunds" },
-            data: { status: "partiallyFunded" },
-          });
-          await createSystemMessage(
-            tx,
-            escrow.chatId,
-            `Escrow partially funded (${total} of ${escrow.price} sats)`,
-            [escrow.buyerPubkey, escrow.sellerPubkey],
-          );
-          return esc;
-        });
-        return c.json(updatedEscrow);
-      } catch {
-        return c.json(escrow);
-      }
+    const result = await checkAndUpdateFunding(escrow);
+    if (result.updated) {
+      notifyEscrowUpdate(result.escrow);
     }
-
-    if (total >= escrow.price) {
-      try {
-        const updatedEscrow = await prisma.$transaction(async (tx) => {
-          const esc = await tx.escrow.update({
-            where: {
-              address,
-              status: { in: ["awaitingFunds", "partiallyFunded"] },
-            },
-            data: { status: "fundLocked" },
-          });
-          await createSystemMessage(
-            tx,
-            escrow.chatId,
-            "Escrow fully funded. Funds are now locked.",
-            [escrow.buyerPubkey, escrow.sellerPubkey],
-          );
-          return esc;
-        });
-        return c.json(updatedEscrow);
-      } catch {
-        return c.json(escrow);
-      }
-    }
+    return c.json(result.escrow);
   } catch (e) {
     return c.json({ error: "Failed to check escrow funding" }, 502);
   }
-
-  return c.json(escrow);
 });
 
 // === Collaborative path ===
