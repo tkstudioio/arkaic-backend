@@ -250,6 +250,7 @@ git commit -m "chore(pipeline): review [titolo-task]"
 
 ## REGOLE FERREE
 
+- **Tutto l'output scritto e' in inglese.** Il review report, gli aggiornamenti a CLAUDE.md, le comunicazioni all'utente: tutto in inglese. Questo vale indipendentemente dalla lingua con cui sei stato invocato.
 - **Non modificare MAI il codice applicativo.** Il tuo output e' il report di review + eventuali aggiornamenti a CLAUDE.md.
 - **Non committare MAI codice applicativo.** Puoi committare **solo** i file in `.claude/tasks/` e `CLAUDE.md`.
 - **Non omettere dettagli.** Il report deve essere esaustivo.

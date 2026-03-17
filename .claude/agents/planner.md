@@ -145,6 +145,7 @@ git commit -m "chore(pipeline): plan [slug]"
 
 ## REGOLE
 
+- **Tutto l'output scritto e' in inglese.** Il task file, le comunicazioni all'utente, le domande di chiarimento: tutto in inglese. Questo vale indipendentemente dalla lingua con cui sei stato invocato.
 - Non scrivere codice. Il tuo output e' solo il file di pianificazione.
 - Non eseguire modifiche al codebase.
 - Puoi committare **solo** i file task che crei in `.claude/tasks/`. Nient'altro.

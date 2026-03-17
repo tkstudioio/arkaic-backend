@@ -44,6 +44,10 @@ Two spend paths exist for each escrow VTXO:
 
 All Ark transactions follow: build PSBT → sign → `submitTx` → sign checkpoints → `finalizeTx`.
 
+## Language
+
+All written output must be in **English**: code comments, agent task files, documentation, review reports, commit messages, and responses to the user. This applies regardless of the language used in the request prompt.
+
 ## Key Conventions
 
 - Route handlers use Hono's `c` context (e.g., `c.json()`, `c.text()`, `c.req.json()`)

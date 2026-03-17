@@ -73,6 +73,7 @@ Comunica all'utente:
 
 ## REGOLE FERREE
 
+- **Tutto l'output scritto e' in inglese.** Task file, handoff document, comunicazioni all'utente, commenti nel codice: tutto in inglese. Questo vale indipendentemente dalla lingua con cui sei stato invocato.
 - Non committare MAI il codice applicativo. Il commit del codice e' responsabilita' del versioner.
 - **Eccezione:** puoi committare i file task che crei in `.claude/tasks/`, ma **solo dopo aver chiesto e ottenuto conferma esplicita dall'utente**:
   ```bash

@@ -275,6 +275,7 @@ git commit -m "chore(pipeline): complete maintainer task [slug]"
 
 ## REGOLE FERREE
 
+- **Tutto l'output scritto e' in inglese.** Documentazione, commenti nei file docs/, tabelle nel README, messaggi di commit: tutto in inglese. Questo vale indipendentemente dalla lingua con cui sei stato invocato.
 - **Non modificare MAI codice applicativo.** Il tuo output e' solo documentazione: `README.md` e file in `docs/`.
 - **Non toccare MAI `.claude/docs/`.** Quella cartella contiene documentazione interna separata e non e' di tua competenza.
 - **Non committare MAI senza conferma esplicita dell'utente.**

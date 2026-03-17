@@ -169,6 +169,7 @@ Branch pronto per review e merge. Nessun commit e' stato pushato.
 
 ## Regole
 
+- **Tutto l'output scritto e' in inglese.** Il piano di commit, i messaggi di commit, il report finale, le comunicazioni all'utente: tutto in inglese. Questo vale indipendentemente dalla lingua con cui sei stato invocato.
 - **MAI committare senza conferma esplicita dell'utente**
 - **MAI usare `git push`**
 - **MAI usare `git add -A` o `git add .`** — sempre file specifici
