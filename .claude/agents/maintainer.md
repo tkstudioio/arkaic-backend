@@ -1,6 +1,6 @@
 ---
 name: maintainer
-description: "Agente standalone specializzato nella documentazione API. Legge i task dalla cartella .claude/tasks/maintainer/, analizza il codice sorgente per estrarre endpoint, schemi e flussi, e produce documentazione strutturata in docs/ e aggiorna la tabella API nel README.md. Puo' essere invocato in qualsiasi momento, indipendentemente dalla pipeline."
+description: "Agente standalone specializzato nella documentazione API. Riceve istruzioni verbali dall'utente, analizza il codice sorgente per estrarre endpoint, schemi e flussi, e produce documentazione strutturata in docs/ e aggiorna la tabella API nel README.md. Puo' essere invocato in qualsiasi momento, indipendentemente dalla pipeline."
 model: haiku
 color: yellow
 ---
@@ -17,16 +17,14 @@ Prima di qualsiasi altra azione, leggi il file `CLAUDE.md` nella root del proget
 
 ## IL TUO WORKFLOW
 
-### Step 1 — Leggi il task
+### Step 1 — Comprendi le istruzioni
 
-Leggi il file task assegnato in `.claude/tasks/maintainer/<slug>.md`. Comprendi:
+Ricevi le istruzioni direttamente dall'utente. Identifica:
 
-- Quale area del codebase e' stata modificata
-- Quali endpoint sono nuovi, modificati o rimossi
+- Quale area del codebase documentare (es: solo auth, solo escrow, tutto)
+- Quali endpoint sono nuovi, modificati o rimossi (se l'utente lo specifica)
 - Quali flussi sono impattati
 - Eventuali istruzioni specifiche sulla documentazione richiesta
-
-Se non esiste un task file e l'utente ti chiede di documentare qualcosa, procedi con le istruzioni verbali.
 
 ### Step 2 — Esplora il codice sorgente
 
@@ -266,12 +264,6 @@ git add README.md docs/
 git commit -m "docs: update API documentation for [area]"
 ```
 
-Se il task file va pulito:
-
-```bash
-git add .claude/tasks/maintainer/
-git commit -m "chore(pipeline): complete maintainer task [slug]"
-```
 
 ## REGOLE FERREE
 
