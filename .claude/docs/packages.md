@@ -1,0 +1,132 @@
+# Modules Reference
+
+> **Audience**: Developer, Planner, Reviewer
+
+## Routes (`src/routes/`)
+
+### auth.ts — Autenticazione
+
+Endpoint per registrazione e login basati su firma Schnorr + JWT.
+
+| Metodo | Path         | Auth            | Scopo                                       |
+| ------ | ------------ | --------------- | ------------------------------------------- |
+| POST   | `/register`  | verifySignature | Registra/aggiorna account con firma Schnorr |
+| POST   | `/challenge` | nessuna         | Genera nonce con scadenza 30s               |
+| POST   | `/login`     | nessuna         | Verifica challenge + firma → JWT HS256 (1h) |
+
+---
+
+### listings.ts — Prodotti marketplace
+
+CRUD per i listing del marketplace. Tutti gli endpoint (tranne GET) richiedono auth.
+
+| Metodo | Path           | Auth                         | Scopo                                    |
+| ------ | -------------- | ---------------------------- | ---------------------------------------- |
+| POST   | `/`            | bearerAuth + verifySignature | Crea listing (valida price > dust fee)   |
+| GET    | `/`            | bearerAuth                   | Lista listing (paginati, escludi propri) |
+| GET    | `/my-listings` | bearerAuth                   | Lista listing dell'utente autenticato    |
+| GET    | `/:id`         | bearerAuth                   | Dettaglio listing con seller             |
+
+---
+
+### chats.ts — Conversazioni
+
+Gestione chat buyer-seller per listing specifici.
+
+| Metodo | Path                 | Auth                         | Scopo                          |
+| ------ | -------------------- | ---------------------------- | ------------------------------ |
+| GET    | `/seller/:listingId` | bearerAuth                   | Chat del seller per un listing |
+| GET    | `/:chatId/escrow`    | bearerAuth                   | Escrow associato alla chat     |
+| GET    | `/:chatId/offer`     | bearerAuth                   | Ultima offerta attiva per chat |
+| GET    | `/:chatId`           | bearerAuth                   | Dettaglio chat completo        |
+| POST   | `/:listingId`        | bearerAuth + verifySignature | Crea chat (idempotente)        |
+
+---
+
+### messages.ts — Messaggi e offerte
+
+Invio messaggi, creazione offerte, risposta a offerte. Notifiche WebSocket integrate.
+
+| Metodo | Path                               | Auth                         | Scopo                          |
+| ------ | ---------------------------------- | ---------------------------- | ------------------------------ |
+| POST   | `/:chatId`                         | bearerAuth + verifySignature | Invia messaggio o crea offerta |
+| POST   | `/:chatId/offers/:offerId/respond` | bearerAuth + verifySignature | Seller accetta/rifiuta offerta |
+| GET    | `/:chatId/offers/active`           | bearerAuth                   | Offerta attiva per chat        |
+
+---
+
+### escrows.ts — Escrow lifecycle
+
+Il file piu' complesso. Gestisce l'intero ciclo di vita dell'escrow Bitcoin.
+
+#### Endpoint generali
+
+| Metodo | Path                | Auth                         | Scopo                                               |
+| ------ | ------------------- | ---------------------------- | --------------------------------------------------- |
+| GET    | `/:chatId`          | bearerAuth                   | Escrow per chat ID                                  |
+| GET    | `/address/:address` | bearerAuth                   | Escrow per address (+ auto-update stato da indexer) |
+| POST   | `/:chatId`          | bearerAuth + verifySignature | Crea/upsert escrow                                  |
+
+#### Flusso collaborativo (3-of-3)
+
+| Metodo | Path                                                    | Auth                         | Stato richiesto        |
+| ------ | ------------------------------------------------------- | ---------------------------- | ---------------------- |
+| GET    | `/address/:address/collaborate/seller-psbt`             | bearerAuth                   | fundLocked             |
+| POST   | `/address/:address/collaborate/seller-submit-psbt`      | bearerAuth                   | fundLocked             |
+| GET    | `/address/:address/collaborate/buyer-psbt`              | bearerAuth                   | sellerReady            |
+| POST   | `/address/:address/collaborate/buyer-submit-psbt`       | bearerAuth + verifySignature | sellerReady            |
+| POST   | `/address/:address/collaborate/buyer-sign-checkpoints`  | bearerAuth                   | buyerSubmitted         |
+| GET    | `/address/:address/collaborate/seller-checkpoints`      | bearerAuth                   | buyerCheckpointsSigned |
+| POST   | `/address/:address/collaborate/seller-sign-checkpoints` | bearerAuth                   | buyerCheckpointsSigned |
+
+#### Flusso refund (2-of-2 con timelock)
+
+| Metodo | Path                                          | Auth                         | Stato richiesto                        |
+| ------ | --------------------------------------------- | ---------------------------- | -------------------------------------- |
+| GET    | `/address/:address/refund/psbt`               | bearerAuth                   | fundLocked                             |
+| POST   | `/address/:address/refund/submit-signed-psbt` | bearerAuth                   | fundLocked                             |
+| POST   | `/address/:address/refund/finalize`           | bearerAuth + verifySignature | fundLocked/partiallyFunded/sellerReady |
+
+---
+
+## Lib (`src/lib/`)
+
+### prisma.ts — Database client
+
+Singleton `PrismaClient` con adapter `better-sqlite3`. Importa da `@/lib/prisma`.
+
+### ark.ts — Ark protocol providers
+
+| Export                    | Tipo                     | Scopo                           |
+| ------------------------- | ------------------------ | ------------------------------- |
+| `arkProvider`             | `RestArkProvider`        | Submit/finalize transazioni Ark |
+| `indexerProvider`         | `RestIndexerProvider`    | Query VTXO per script           |
+| `getServerPubkey()`       | `async () => Uint8Array` | Pubkey del server Ark           |
+| `getNetworkTimeSeconds()` | `async () => number`     | Tempo corrente dalla chain      |
+
+### escrow.ts — Escrow helpers
+
+| Export                                        | Scopo                                               |
+| --------------------------------------------- | --------------------------------------------------- |
+| `toXOnly(pubkey)`                             | Converte pubkey a x-only (32 bytes)                 |
+| `buildEscrowContext(buyer, seller, timelock)` | Costruisce tapscript escrow (refund + collab paths) |
+| `buildEscrowTransaction(escrow, pathType)`    | Costruisce PSBT + checkpoints per una transazione   |
+
+### auth.ts — Auth middleware
+
+| Export            | Tipo       | Scopo                                                         |
+| ----------------- | ---------- | ------------------------------------------------------------- |
+| `AuthEnv`         | Type       | Tipo Hono env con `pubkey` e `signature` nelle variables      |
+| `bearerAuth`      | Middleware | Verifica JWT Bearer, imposta `c.set("pubkey")`                |
+| `verifySignature` | Middleware | Verifica firma Schnorr sul body, imposta `c.set("signature")` |
+
+---
+
+## WebSocket (`src/routes/ws.ts`)
+
+| Export                     | Scopo                                                       |
+| -------------------------- | ----------------------------------------------------------- |
+| `sendToUser(pubkey, data)` | Invia messaggio JSON a tutte le connessioni di un utente    |
+| `setupWebSocket(app)`      | Monta endpoint `/ws` con autenticazione JWT via query param |
+
+w
