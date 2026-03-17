@@ -120,6 +120,13 @@ Singleton `PrismaClient` con adapter `better-sqlite3`. Importa da `@/lib/prisma`
 | `bearerAuth`      | Middleware | Verifica JWT Bearer, imposta `c.set("pubkey")`                |
 | `verifySignature` | Middleware | Verifica firma Schnorr sul body, imposta `c.set("signature")` |
 
+### system-messages.ts — System message helper
+
+| Export                 | Tipo     | Scopo                                                                       |
+| ---------------------- | -------- | --------------------------------------------------------------------------- |
+| `SYSTEM_SENDER`        | Constant | Sentinel value `"SYSTEM"` (exported for reference, not used as senderPubkey)|
+| `createSystemMessage`  | Function | Creates a `Message` with `isSystem: true`, `senderPubkey: null`, and sends `new_message` WS notifications. Accepts both `PrismaClient` and transaction client. |
+
 ---
 
 ## WebSocket (`src/routes/ws.ts`)

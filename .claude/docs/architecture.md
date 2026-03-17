@@ -27,7 +27,8 @@ src/
 │   ├── prisma.ts              # Prisma client singleton (SQLite, better-sqlite3)
 │   ├── ark.ts                 # Ark SDK providers (RestArkProvider, RestIndexerProvider, EsploraProvider)
 │   ├── escrow.ts              # Escrow helpers (toXOnly, buildEscrowContext, buildEscrowTransaction)
-│   └── auth.ts                # Auth middleware (bearerAuth JWT, verifySignature Schnorr)
+│   ├── auth.ts                # Auth middleware (bearerAuth JWT, verifySignature Schnorr)
+│   └── system-messages.ts     # System message helper (createSystemMessage for lifecycle events)
 ├── routes/
 │   ├── api/
 │   │   ├── index.ts           # Router composition: monta tutti i sub-router
