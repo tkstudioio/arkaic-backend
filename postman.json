@@ -1,0 +1,721 @@
+{
+  "info": {
+    "_postman_id": "arkaic-backend-api",
+    "name": "Arkaic Backend API",
+    "description": "Marketplace escrow Bitcoin su Ark (mutinynet)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pubkey\": \"02abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890\",\n  \"username\": \"alice\",\n  \"signature\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Register a new account or update username (requires Schnorr signature over 'username pubkey')"
+          }
+        },
+        {
+          "name": "Request Challenge",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pubkey\": \"02abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/challenge",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "challenge"]
+            },
+            "description": "Request a challenge (nonce) valid for 30 seconds to sign for login"
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pubkey\": \"02abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890\",\n  \"nonce\": \"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef\",\n  \"signature\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Complete login with nonce and signature. Returns JWT token valid for 1 hour."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Listings",
+      "item": [
+        {
+          "name": "Create Listing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bitcoin Hardware Wallet\",\n  \"price\": 5000,\n  \"signature\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/listings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "listings"]
+            },
+            "description": "Create a new listing (requires Bearer token + Schnorr signature over {name, price})"
+          }
+        },
+        {
+          "name": "List All Listings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/listings?limit=20&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "listings"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "List all listings except own (paginated)"
+          }
+        },
+        {
+          "name": "My Listings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/listings/my-listings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "listings", "my-listings"]
+            },
+            "description": "List all listings created by authenticated user"
+          }
+        },
+        {
+          "name": "Get Listing by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/listings/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "listings", "1"]
+            },
+            "description": "Get details of a specific listing"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chats",
+      "item": [
+        {
+          "name": "Create Chat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"signature\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chats/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chats", "1"]
+            },
+            "description": "Create a new chat for a listing (buyer initiates)"
+          }
+        },
+        {
+          "name": "Get Chat",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/chats/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chats", "1"]
+            },
+            "description": "Get full chat details with messages and offers"
+          }
+        },
+        {
+          "name": "Get Chat Escrow",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/chats/1/escrow",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chats", "1", "escrow"]
+            },
+            "description": "Get the escrow associated with this chat"
+          }
+        },
+        {
+          "name": "Get Chat Offer",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/chats/1/offer",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chats", "1", "offer"]
+            },
+            "description": "Get the most recent valid offer in this chat"
+          }
+        },
+        {
+          "name": "Get Seller Chats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/chats/seller/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chats", "seller", "1"]
+            },
+            "description": "Get all chats for a listing where authenticated user is seller"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Messages & Offers",
+      "item": [
+        {
+          "name": "Send Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Hello seller, interested in this item!\",\n  \"signature\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/messages/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messages", "1"]
+            },
+            "description": "Send a plain text message in a chat"
+          }
+        },
+        {
+          "name": "Make Offer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Can you do 4500 sat?\",\n  \"offeredPrice\": 4500,\n  \"signature\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/messages/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messages", "1"]
+            },
+            "description": "Make a price offer (only buyer can do this)"
+          }
+        },
+        {
+          "name": "Respond to Offer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accepted\": true,\n  \"signature\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/messages/1/offers/1/respond",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messages", "1", "offers", "1", "respond"]
+            },
+            "description": "Accept or reject an offer (seller only)"
+          }
+        },
+        {
+          "name": "Get Active Offer",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/messages/1/offers/active",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messages", "1", "offers", "active"]
+            },
+            "description": "Get the most recent valid and unanswered offer"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Escrows",
+      "item": [
+        {
+          "name": "Create Escrow",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"chatId\": 1,\n  \"sellerPubkey\": \"02def1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab\",\n  \"timelockExpiry\": 1710000000,\n  \"price\": 5000,\n  \"serverPubkey\": \"02server1234567890abcdef1234567890abcdef1234567890abcdef1234567890\",\n  \"escrowAddress\": \"tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n  \"signature\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/escrows/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "escrows", "1"]
+            },
+            "description": "Create escrow after offer is accepted"
+          }
+        },
+        {
+          "name": "Get Escrow by Chat",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/escrows/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "escrows", "1"]
+            },
+            "description": "Get escrow details by chat ID"
+          }
+        },
+        {
+          "name": "Get Escrow by Address",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"]
+            },
+            "description": "Get escrow by address and check funding status (updates status if needed)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Collaborative Path",
+      "item": [
+        {
+          "name": "Seller: Get PSBT",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/collaborate/seller-psbt",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "collaborate", "seller-psbt"]
+            },
+            "description": "Seller requests PSBT to sign"
+          }
+        },
+        {
+          "name": "Seller: Submit Signed PSBT",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"signedPsbt\": \"cHNidP8BAAAAAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/collaborate/seller-submit-psbt",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "collaborate", "seller-submit-psbt"]
+            },
+            "description": "Seller submits signed PSBT"
+          }
+        },
+        {
+          "name": "Buyer: Get PSBT from Seller",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/collaborate/buyer-psbt",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "collaborate", "buyer-psbt"]
+            },
+            "description": "Buyer polls for seller's signed PSBT"
+          }
+        },
+        {
+          "name": "Buyer: Submit Fully-Signed PSBT",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"signedPsbt\": \"cHNidP8BAAAAAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/collaborate/buyer-submit-psbt",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "collaborate", "buyer-submit-psbt"]
+            },
+            "description": "Buyer submits fully-signed PSBT to Ark network"
+          }
+        },
+        {
+          "name": "Buyer: Sign Checkpoints",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"signedCheckpointTxs\": [\n    \"cHNidP8BAAAAAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n    \"cHNidP8BAAAAAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n    \"cHNidP8BAAAAAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/collaborate/buyer-sign-checkpoints",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "collaborate", "buyer-sign-checkpoints"]
+            },
+            "description": "Buyer signs and submits checkpoint transactions"
+          }
+        },
+        {
+          "name": "Seller: Get Checkpoints",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/collaborate/seller-checkpoints",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "collaborate", "seller-checkpoints"]
+            },
+            "description": "Seller polls for buyer's signed checkpoints"
+          }
+        },
+        {
+          "name": "Seller: Sign and Finalize",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"signedCheckpointTxs\": [\n    \"cHNidP8BAAAAAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n    \"cHNidP8BAAAAAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n    \"cHNidP8BAAAAAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/collaborate/seller-sign-checkpoints",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "collaborate", "seller-sign-checkpoints"]
+            },
+            "description": "Seller signs and finalizes on-chain"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Refund Path",
+      "item": [
+        {
+          "name": "Buyer: Get Refund PSBT",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/refund/psbt",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "refund", "psbt"]
+            },
+            "description": "Buyer requests refund PSBT"
+          }
+        },
+        {
+          "name": "Buyer: Submit Signed PSBT to Ark",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"signedPsbt\": \"cHNidP8BAAAAAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/refund/submit-signed-psbt",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "refund", "submit-signed-psbt"]
+            },
+            "description": "Buyer submits signed refund PSBT to Ark network"
+          }
+        },
+        {
+          "name": "Buyer: Finalize Refund",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"arkTxid\": \"abc123def456789abc123def456789abc123def456789abc123def456789abc1\",\n  \"signedCheckpointTxs\": [\n    \"cHNidP8BAAAAAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n    \"cHNidP8BAAAAAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n    \"cHNidP8BAAAAAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/refund/finalize",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "refund", "finalize"]
+            },
+            "description": "Buyer finalizes refund on-chain"
+          }
+        }
+      ]
+    },
+    {
+      "name": "WebSocket",
+      "item": [
+        {
+          "name": "Connect WebSocket",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ws?token={{token}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["ws"],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "{{token}}"
+                }
+              ]
+            },
+            "description": "Connect WebSocket for real-time notifications (new_message, new_offer, offer_accepted, escrow_update, etc)"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
