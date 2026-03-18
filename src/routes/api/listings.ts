@@ -34,7 +34,9 @@ listings.post(
       );
 
     if (categoryId !== undefined) {
-      const cat = await prisma.category.findUnique({ where: { id: categoryId } });
+      const cat = await prisma.category.findUnique({
+        where: { id: categoryId },
+      });
       if (!cat) return c.text("Category not found", 404);
     }
 
@@ -52,7 +54,8 @@ listings.get("/", async (c) => {
   const take = Math.min(Number(c.req.query("limit")) || 20, 100);
   const skip = Number(c.req.query("offset")) || 0;
   const categoryIdParam = c.req.query("categoryId");
-  const categoryId = categoryIdParam !== undefined ? Number(categoryIdParam) : undefined;
+  const categoryId =
+    categoryIdParam !== undefined ? Number(categoryIdParam) : undefined;
 
   const allListings = await prisma.listing.findMany({
     where: {
