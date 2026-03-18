@@ -10,7 +10,13 @@ categories.use(bearerAuth);
 categories.get("/", async (c) => {
   const roots = await prisma.category.findMany({
     where: { childrenOf: null },
-    select: { id: true, name: true, slug: true, childrenOf: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      childrenOf: true,
+      children: true,
+    },
     orderBy: { id: "asc" },
   });
   return c.json(roots);
