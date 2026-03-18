@@ -35,6 +35,15 @@ categories.get("/:slug", async (c) => {
         select: { id: true, name: true, slug: true, childrenOf: true },
         orderBy: { id: "asc" },
       },
+      categoryAttributes: {
+        include: {
+          attribute: {
+            include: {
+              values: { select: { id: true, value: true } },
+            },
+          },
+        },
+      },
     },
   });
   if (!parent) return c.text("Category not found", 404);
