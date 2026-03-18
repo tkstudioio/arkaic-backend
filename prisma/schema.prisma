@@ -54,6 +54,7 @@ model Listing {
   seller       Account   @relation(fields: [sellerPubkey], references: [pubkey])
   signature    String
   name         String
+  description  String?
   price        Int
   createdAt    DateTime  @default(now())
   // categoryId is the authoritative single-category relation for a listing
@@ -63,6 +64,7 @@ model Listing {
   // categories (ListingCategory) is a legacy/multi-category join table, reserved for future use
   categories ListingCategory[]
   chats      Chat[]
+  attributes ListingAttribute[]
 }
 
 model ListingCategory {
@@ -152,6 +154,69 @@ model Category {
 
   listings       ListingCategory[]
   directListings Listing[]         @relation("ListingDirectCategory")
+  attributes     CategoryAttribute[]
+}
+
+model Attribute {
+  id        Int     @id @default(autoincrement())
+  name      String
+  slug      String  @unique
+  type      AttributeType
+  unit      String?
+
+  values     AttributeValue[]
+  categories CategoryAttribute[]
+  listings   ListingAttribute[]
+}
+
+enum AttributeType {
+  select
+  number
+  text
+  boolean
+}
+
+model AttributeValue {
+  id          Int       @id @default(autoincrement())
+  value       String
+  attributeId Int
+  attribute   Attribute @relation(fields: [attributeId], references: [id])
+
+  listings ListingAttribute[]
+}
+
+model CategoryAttribute {
+  id          Int       @id @default(autoincrement())
+  categoryId  Int
+  attributeId Int
+
+  category  Category  @relation(fields: [categoryId], references: [id])
+  attribute Attribute @relation(fields: [attributeId], references: [id])
+
+  required     Boolean @default(false)
+  isFilterable Boolean @default(true)
+
+  @@unique([categoryId, attributeId])
+}
+
+model ListingAttribute {
+  id          Int       @id @default(autoincrement())
+  listingId   Int
+  attributeId Int
+
+  // per select (taglia, brand, ecc)
+  valueId     Int?
+
+  // per valori liberi o numeri
+  valueText   String?
+
+  listing   Listing   @relation(fields: [listingId], references: [id])
+  attribute Attribute @relation(fields: [attributeId], references: [id])
+  value     AttributeValue? @relation(fields: [valueId], references: [id])
+
+  @@index([listingId])
+  @@index([attributeId])
+  @@index([valueId])
 }
 
 model Escrow {
