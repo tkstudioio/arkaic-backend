@@ -78,6 +78,47 @@
       ]
     },
     {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "List Root Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories"]
+            },
+            "description": "List all root-level categories (top level of the hierarchy). Root categories have no parent (childrenOf is null)."
+          }
+        },
+        {
+          "name": "Get Category by Slug",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/electronics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories", "electronics"]
+            },
+            "description": "Get details of a specific category and list its direct children. Example slug: 'electronics', 'clothing', 'shoes', 'phones', 'laptops', 'bags'"
+          }
+        }
+      ]
+    },
+    {
       "name": "Listings",
       "item": [
         {
@@ -96,14 +137,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Bitcoin Hardware Wallet\",\n  \"price\": 5000,\n  \"signature\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n}"
+              "raw": "{\n  \"name\": \"Bitcoin Hardware Wallet\",\n  \"price\": 5000,\n  \"categoryId\": 2,\n  \"signature\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/listings",
               "host": ["{{baseUrl}}"],
               "path": ["api", "listings"]
             },
-            "description": "Create a new listing (requires Bearer token + Schnorr signature over {name, price})"
+            "description": "Create a new listing (requires Bearer token + Schnorr signature over {name, price, [categoryId]}). categoryId is optional."
           }
         },
         {
@@ -117,7 +158,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/listings?limit=20&offset=0",
+              "raw": "{{baseUrl}}/api/listings?limit=20&offset=0&categoryId=2",
               "host": ["{{baseUrl}}"],
               "path": ["api", "listings"],
               "query": [
@@ -128,10 +169,15 @@
                 {
                   "key": "offset",
                   "value": "0"
+                },
+                {
+                  "key": "categoryId",
+                  "value": "2",
+                  "disabled": true
                 }
               ]
             },
-            "description": "List all listings except own (paginated)"
+            "description": "List all listings except own (paginated). categoryId is optional query parameter to filter by category."
           }
         },
         {
