@@ -49,14 +49,18 @@ model Review {
 }
 
 model Listing {
-  id           Int      @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   sellerPubkey String
-  seller       Account  @relation(fields: [sellerPubkey], references: [pubkey])
+  seller       Account   @relation(fields: [sellerPubkey], references: [pubkey])
   signature    String
   name         String
   price        Int
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
+  // categoryId is the authoritative single-category relation for a listing
+  categoryId   Int?
+  category     Category? @relation("ListingDirectCategory", fields: [categoryId], references: [id])
 
+  // categories (ListingCategory) is a legacy/multi-category join table, reserved for future use
   categories ListingCategory[]
   chats      Chat[]
 }
@@ -141,11 +145,13 @@ model OfferAcceptance {
 model Category {
   id         Int        @id @default(autoincrement())
   name       String
+  slug       String     @unique
   childrenOf Int?
   parent     Category?  @relation("CategoryTree", fields: [childrenOf], references: [id])
   children   Category[] @relation("CategoryTree")
 
-  listings ListingCategory[]
+  listings       ListingCategory[]
+  directListings Listing[]         @relation("ListingDirectCategory")
 }
 
 model Escrow {
