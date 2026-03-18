@@ -34,6 +34,7 @@ src/
 │   │   ├── index.ts           # Router composition: monta tutti i sub-router
 │   │   ├── auth.ts            # Register, challenge, login (Schnorr + JWT)
 │   │   ├── listings.ts        # CRUD prodotti del marketplace
+│   │   ├── categories.ts      # Category tree browsing (root categories, children by slug)
 │   │   ├── chats.ts           # Conversazioni buyer-seller per listing
 │   │   ├── messages.ts        # Messaggi, offerte, accettazione offerte
 │   │   └── escrows.ts         # Creazione escrow, flusso collaborativo, flusso refund
@@ -49,8 +50,9 @@ src/
 | Prefisso        | File          | Scopo                                     |
 | --------------- | ------------- | ----------------------------------------- |
 | `/api/auth`     | `auth.ts`     | Registrazione, challenge nonce, login JWT |
-| `/api/listings` | `listings.ts` | CRUD listing con firma Schnorr            |
-| `/api/chats`    | `chats.ts`    | Gestione chat buyer-seller                |
+| `/api/listings`   | `listings.ts`   | CRUD listing con firma Schnorr            |
+| `/api/categories` | `categories.ts` | Category tree browsing                    |
+| `/api/chats`      | `chats.ts`      | Gestione chat buyer-seller                |
 | `/api/messages` | `messages.ts` | Messaggi, offerte, risposta offerte       |
 | `/api/escrows`  | `escrows.ts`  | Escrow lifecycle (create, collab, refund) |
 | `/ws`           | `ws.ts`       | WebSocket per notifiche push              |

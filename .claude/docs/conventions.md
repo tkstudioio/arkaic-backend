@@ -24,7 +24,7 @@ import { sendToUser } from "@/routes/ws";
 
 // Import esterni
 import { Hono } from "hono";
-import { z } from "zod/v4";
+import z from "zod";
 import { sValidator } from "@hono/standard-validator";
 import { hex, base64 } from "@scure/base";
 ```
@@ -152,7 +152,7 @@ const psbtBytes = base64.decode(psbtBase64);
 ## Validation Pattern (Zod)
 
 ```typescript
-import { z } from "zod/v4";
+import z from "zod";
 import { sValidator } from "@hono/standard-validator";
 
 // Schema inline nel middleware

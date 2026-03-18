@@ -18,14 +18,25 @@ Endpoint per registrazione e login basati su firma Schnorr + JWT.
 
 ### listings.ts — Prodotti marketplace
 
-CRUD per i listing del marketplace. Tutti gli endpoint (tranne GET) richiedono auth.
+CRUD per i listing del marketplace. Tutti gli endpoint (tranne GET) richiedono auth. Listings can optionally belong to a category via `categoryId`.
 
-| Metodo | Path           | Auth                         | Scopo                                    |
-| ------ | -------------- | ---------------------------- | ---------------------------------------- |
-| POST   | `/`            | bearerAuth + verifySignature | Crea listing (valida price > dust fee)   |
-| GET    | `/`            | bearerAuth                   | Lista listing (paginati, escludi propri) |
-| GET    | `/my-listings` | bearerAuth                   | Lista listing dell'utente autenticato    |
-| GET    | `/:id`         | bearerAuth                   | Dettaglio listing con seller             |
+| Metodo | Path           | Auth                         | Scopo                                              |
+| ------ | -------------- | ---------------------------- | -------------------------------------------------- |
+| POST   | `/`            | bearerAuth + verifySignature | Crea listing (valida price > dust fee, opt. categoryId) |
+| GET    | `/`            | bearerAuth                   | Lista listing (paginati, escludi propri, include category) |
+| GET    | `/my-listings` | bearerAuth                   | Lista listing dell'utente autenticato (include category)   |
+| GET    | `/:id`         | bearerAuth                   | Dettaglio listing con seller e category            |
+
+---
+
+### categories.ts — Category tree
+
+Read-only endpoints for browsing the hierarchical category tree. All endpoints require `bearerAuth`.
+
+| Metodo | Path      | Auth       | Scopo                                      |
+| ------ | --------- | ---------- | ------------------------------------------ |
+| GET    | `/`       | bearerAuth | List root categories (childrenOf is null)  |
+| GET    | `/:slug`  | bearerAuth | List children of a category by its slug    |
 
 ---
 
