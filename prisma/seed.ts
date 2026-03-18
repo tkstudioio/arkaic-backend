@@ -19,48 +19,88 @@ async function createCategory(name: string, slug: string, parentId?: number) {
   });
 }
 
+async function createAttribute(name: string, slug: string, type: "select" | "boolean") {
+  return prisma.attribute.upsert({
+    where: { slug },
+    update: { name, type },
+    create: { name, slug, type },
+  });
+}
+
+async function createAttributeValue(attributeId: number, value: string) {
+  const existing = await prisma.attributeValue.findFirst({
+    where: { attributeId, value },
+  });
+  if (existing) return existing;
+  return prisma.attributeValue.create({
+    data: { attributeId, value },
+  });
+}
+
+async function linkCategoryAttribute(
+  categoryId: number,
+  attributeId: number,
+  options: { required?: boolean; isFilterable?: boolean } = {}
+) {
+  return prisma.categoryAttribute.upsert({
+    where: { categoryId_attributeId: { categoryId, attributeId } },
+    update: { required: options.required ?? false, isFilterable: options.isFilterable ?? true },
+    create: {
+      categoryId,
+      attributeId,
+      required: options.required ?? false,
+      isFilterable: options.isFilterable ?? true,
+    },
+  });
+}
+
 async function main() {
   // Remove old orphaned slugs from previous taxonomy
+  // First delete CategoryAttribute records that reference these categories to avoid FK violations
+  const orphanedSlugs = [
+    "unisex",
+    "unisex-streetwear",
+    "unisex-vintage",
+    "unisex-activewear",
+    "unisex-loungewear",
+    "unisex-basics",
+    "women-shoes",
+    "women-bags",
+    "women-accessories",
+    "women-knitwear",
+    "women-hoodies",
+    "women-jackets-coats",
+    "women-lingerie",
+    "women-trousers",
+    "men-shoes",
+    "men-bags-backpacks",
+    "men-accessories",
+    "men-knitwear",
+    "men-hoodies",
+    "men-jackets-coats",
+    "men-tracksuits",
+    "men-underwear",
+    "men-trousers",
+    "kids-0-2",
+    "kids-3-12",
+    "kids-shoes",
+    "kids-accessories",
+    "kids-swimwear",
+    "kids-sportswear",
+  ];
+  const orphanedCategories = await prisma.category.findMany({
+    where: { slug: { in: orphanedSlugs } },
+    select: { id: true },
+  });
+  if (orphanedCategories.length > 0) {
+    const orphanedIds = orphanedCategories.map((c) => c.id);
+    await prisma.categoryAttribute.deleteMany({
+      where: { categoryId: { in: orphanedIds } },
+    });
+  }
+
   await prisma.category.deleteMany({
-    where: {
-      slug: {
-        in: [
-          // old unisex root + subcategories
-          "unisex",
-          "unisex-streetwear",
-          "unisex-vintage",
-          "unisex-activewear",
-          "unisex-loungewear",
-          "unisex-basics",
-          // old flat women nodes replaced by granular ones
-          "women-shoes",
-          "women-bags",
-          "women-accessories",
-          "women-knitwear",
-          "women-hoodies",
-          "women-jackets-coats",
-          "women-lingerie",
-          "women-trousers",
-          // old flat men nodes replaced by granular ones
-          "men-shoes",
-          "men-bags-backpacks",
-          "men-accessories",
-          "men-knitwear",
-          "men-hoodies",
-          "men-jackets-coats",
-          "men-tracksuits",
-          "men-underwear",
-          "men-trousers",
-          // old flat kids nodes replaced
-          "kids-0-2",
-          "kids-3-12",
-          "kids-shoes",
-          "kids-accessories",
-          "kids-swimwear",
-          "kids-sportswear",
-        ],
-      },
-    },
+    where: { slug: { in: orphanedSlugs } },
   });
 
   // ===== ROOT CATEGORIES =====
@@ -222,7 +262,103 @@ async function main() {
     await createCategory(name, `kids-${slug}`, kids.id);
   }
 
-  console.log("Seed completed: 3 roots, 88 subcategories");
+  // ===== ATTRIBUTES =====
+
+  const brand = await createAttribute("Brand", "brand", "select");
+  const condition = await createAttribute("Condition", "condition", "select");
+  const clothingSize = await createAttribute("Clothing Size", "clothing-size", "select");
+  const color = await createAttribute("Color", "color", "select");
+  const shoeSize = await createAttribute("Shoe Size", "shoe-size", "select");
+  const vintage = await createAttribute("Vintage", "vintage", "boolean");
+
+  // ===== ATTRIBUTE VALUES =====
+
+  for (const v of ["Nike", "Adidas", "Puma", "New Balance", "Gucci", "Prada", "Zara", "H&M", "Other"]) {
+    await createAttributeValue(brand.id, v);
+  }
+
+  for (const v of ["New with tags", "Like new", "Good", "Fair"]) {
+    await createAttributeValue(condition.id, v);
+  }
+
+  for (const v of ["XXS", "XS", "S", "M", "L", "XL", "XXL", "3XL"]) {
+    await createAttributeValue(clothingSize.id, v);
+  }
+
+  for (const v of ["Black", "White", "Red", "Blue", "Green", "Yellow", "Pink", "Brown", "Grey", "Beige", "Multicolor"]) {
+    await createAttributeValue(color.id, v);
+  }
+
+  for (const v of ["35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46"]) {
+    await createAttributeValue(shoeSize.id, v);
+  }
+
+  // ===== CATEGORY-ATTRIBUTE ASSOCIATIONS =====
+
+  const womenClothingCategories = await prisma.category.findMany({
+    where: {
+      childrenOf: women.id,
+      slug: {
+        notIn: [
+          ...["shoes-sneakers", "shoes-boots", "shoes-ankle-boots", "shoes-heels", "shoes-sandals", "shoes-loafers", "shoes-sport"].map(s => `women-${s}`),
+          ...["bags-handbags", "bags-shoulder-crossbody", "bags-backpacks", "bags-clutches", "bags-totes"].map(s => `women-${s}`),
+          ...["accessories-belts", "accessories-sunglasses", "accessories-hats", "accessories-scarves", "accessories-jewellery", "accessories-watches", "accessories-gloves"].map(s => `women-${s}`),
+        ],
+      },
+    },
+  });
+
+  for (const cat of womenClothingCategories) {
+    await linkCategoryAttribute(cat.id, brand.id, { required: false, isFilterable: true });
+    await linkCategoryAttribute(cat.id, condition.id, { required: true, isFilterable: true });
+    await linkCategoryAttribute(cat.id, clothingSize.id, { required: true, isFilterable: true });
+    await linkCategoryAttribute(cat.id, color.id, { required: false, isFilterable: true });
+    await linkCategoryAttribute(cat.id, vintage.id, { required: false, isFilterable: true });
+  }
+
+  const womenShoeCats = await prisma.category.findMany({
+    where: { childrenOf: women.id, slug: { startsWith: "women-shoes-" } },
+  });
+  for (const cat of womenShoeCats) {
+    await linkCategoryAttribute(cat.id, brand.id, { required: false, isFilterable: true });
+    await linkCategoryAttribute(cat.id, condition.id, { required: true, isFilterable: true });
+    await linkCategoryAttribute(cat.id, shoeSize.id, { required: true, isFilterable: true });
+    await linkCategoryAttribute(cat.id, color.id, { required: false, isFilterable: true });
+    await linkCategoryAttribute(cat.id, vintage.id, { required: false, isFilterable: true });
+  }
+
+  const menClothingCategories = await prisma.category.findMany({
+    where: {
+      childrenOf: men.id,
+      slug: {
+        notIn: [
+          ...["shoes-sneakers", "shoes-boots", "shoes-formal", "shoes-loafers", "shoes-sandals", "shoes-sport"].map(s => `men-${s}`),
+          ...["bags-backpacks", "bags-shoulder-crossbody", "bags-briefcases", "bags-holdalls"].map(s => `men-${s}`),
+          ...["accessories-belts", "accessories-sunglasses", "accessories-hats", "accessories-scarves", "accessories-watches", "accessories-wallets", "accessories-gloves", "accessories-ties"].map(s => `men-${s}`),
+        ],
+      },
+    },
+  });
+  for (const cat of menClothingCategories) {
+    await linkCategoryAttribute(cat.id, brand.id, { required: false, isFilterable: true });
+    await linkCategoryAttribute(cat.id, condition.id, { required: true, isFilterable: true });
+    await linkCategoryAttribute(cat.id, clothingSize.id, { required: true, isFilterable: true });
+    await linkCategoryAttribute(cat.id, color.id, { required: false, isFilterable: true });
+    await linkCategoryAttribute(cat.id, vintage.id, { required: false, isFilterable: true });
+  }
+
+  const menShoeCats = await prisma.category.findMany({
+    where: { childrenOf: men.id, slug: { startsWith: "men-shoes-" } },
+  });
+  for (const cat of menShoeCats) {
+    await linkCategoryAttribute(cat.id, brand.id, { required: false, isFilterable: true });
+    await linkCategoryAttribute(cat.id, condition.id, { required: true, isFilterable: true });
+    await linkCategoryAttribute(cat.id, shoeSize.id, { required: true, isFilterable: true });
+    await linkCategoryAttribute(cat.id, color.id, { required: false, isFilterable: true });
+    await linkCategoryAttribute(cat.id, vintage.id, { required: false, isFilterable: true });
+  }
+
+  console.log("Seed completed: 3 roots, 88 subcategories, 6 attributes, category-attribute links");
 }
 
 main()
