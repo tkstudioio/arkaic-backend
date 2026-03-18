@@ -17,6 +17,7 @@ listings.post(
     z.object({
       name: z.string().min(3),
       price: z.number().min(100),
+      description: z.string().min(12).optional(),
       categoryId: z.number().int().positive().optional(),
     }),
   ),
@@ -25,7 +26,7 @@ listings.post(
     const sellerPubkey = c.get("pubkey");
     const signature = c.get("signature")!;
 
-    const { name, price, categoryId } = c.req.valid("json");
+    const { name, price, description, categoryId } = c.req.valid("json");
 
     if (price <= dust)
       return c.text(
@@ -41,11 +42,67 @@ listings.post(
     }
 
     const newListing = await prisma.listing.create({
-      data: { name, price, sellerPubkey, signature, categoryId },
+      data: { name, price, description, sellerPubkey, signature, categoryId },
       include: { category: true },
     });
 
     return c.json(newListing);
+  },
+);
+
+listings.patch(
+  "/:id",
+  verifySignature,
+  sValidator(
+    "json",
+    z.object({
+      name: z.string().min(3).optional(),
+      price: z.number().min(100).optional(),
+      description: z.string().min(12).optional(),
+      categoryId: z.number().int().positive().nullable().optional(),
+    }),
+  ),
+  async (c) => {
+    const pubkey = c.get("pubkey");
+    const signature = c.get("signature")!;
+    const id = Number(c.req.param("id"));
+    const { name, price, description, categoryId } = c.req.valid("json");
+
+    const listing = await prisma.listing.findFirst({
+      where: { id, sellerPubkey: pubkey },
+    });
+
+    if (!listing) return c.text("Listing not found", 404);
+
+    if (price !== undefined) {
+      const { dust } = await arkProvider.getInfo();
+      if (price <= dust)
+        return c.text(
+          "Product price can't be less than ark provider's dust fee.",
+          400,
+        );
+    }
+
+    if (categoryId !== undefined && categoryId !== null) {
+      const cat = await prisma.category.findUnique({
+        where: { id: categoryId },
+      });
+      if (!cat) return c.text("Category not found", 404);
+    }
+
+    const updateData: Record<string, unknown> = { signature };
+    if (name !== undefined) updateData.name = name;
+    if (price !== undefined) updateData.price = price;
+    if (description !== undefined) updateData.description = description;
+    if (categoryId !== undefined) updateData.categoryId = categoryId;
+
+    const updated = await prisma.listing.update({
+      where: { id },
+      data: updateData,
+      include: { category: true },
+    });
+
+    return c.json(updated);
   },
 );
 
@@ -87,7 +144,7 @@ listings.get("/:id", async (c) => {
 
   const listing = await prisma.listing.findUnique({
     where: { id: Number(id) },
-    include: { seller: true, category: true },
+    include: { seller: true, category: { include: { parent: true } } },
   });
 
   if (!listing) return c.text("Listing not found", 404);
