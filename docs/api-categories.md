@@ -72,7 +72,7 @@ curl -X GET http://localhost:3000/api/categories \
 
 ## `GET /api/categories/:slug`
 
-Get details of a specific category and list its direct children. Categories form a tree structure where each category can have a parent and multiple children.
+Get details of a specific category, list its direct children, and display the attributes that apply to this category. Categories form a tree structure where each category can have a parent and multiple children.
 
 **Authentication:** Bearer token
 
@@ -101,36 +101,94 @@ Path parameters:
       "slug": "string — child category slug",
       "childrenOf": "number — ID of this parent category"
     }
-  ]
-}
-```
-
-Example response for `GET /api/categories/clothing`:
-
-```json
-{
-  "id": 1,
-  "name": "Clothing",
-  "slug": "clothing",
-  "childrenOf": null,
-  "children": [
+  ],
+  "categoryAttributes": [
     {
-      "id": 3,
-      "name": "Shoes",
-      "slug": "shoes",
-      "childrenOf": 1
-    },
-    {
-      "id": 4,
-      "name": "Bags",
-      "slug": "bags",
-      "childrenOf": 1
+      "id": "number — category attribute assignment ID",
+      "categoryId": "number — category ID",
+      "attributeId": "number — attribute ID",
+      "required": "boolean — whether this attribute is required for listings in this category",
+      "isFilterable": "boolean — whether this attribute can be used for filtering",
+      "attribute": {
+        "id": "number — attribute ID",
+        "name": "string — attribute name",
+        "slug": "string — attribute slug",
+        "type": "enum ('select' | 'boolean') — attribute type",
+        "values": [
+          {
+            "id": "number — attribute value ID",
+            "value": "string — value label (for select attributes)"
+          }
+        ]
+      }
     }
   ]
 }
 ```
 
-Children are ordered by category ID in ascending order.
+Example response for `GET /api/categories/electronics`:
+
+```json
+{
+  "id": 2,
+  "name": "Electronics",
+  "slug": "electronics",
+  "childrenOf": null,
+  "children": [
+    {
+      "id": 5,
+      "name": "Phones",
+      "slug": "phones",
+      "childrenOf": 2
+    },
+    {
+      "id": 6,
+      "name": "Laptops",
+      "slug": "laptops",
+      "childrenOf": 2
+    }
+  ],
+  "categoryAttributes": [
+    {
+      "id": 10,
+      "categoryId": 2,
+      "attributeId": 1,
+      "required": true,
+      "isFilterable": true,
+      "attribute": {
+        "id": 1,
+        "name": "Brand",
+        "slug": "brand",
+        "type": "select",
+        "values": [
+          { "id": 20, "value": "Apple" },
+          { "id": 21, "value": "Samsung" },
+          { "id": 22, "value": "Google" }
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "categoryId": 2,
+      "attributeId": 3,
+      "required": false,
+      "isFilterable": true,
+      "attribute": {
+        "id": 3,
+        "name": "Color",
+        "slug": "color",
+        "type": "select",
+        "values": [
+          { "id": 10, "value": "Red" },
+          { "id": 11, "value": "Blue" }
+        ]
+      }
+    }
+  ]
+}
+```
+
+Children are ordered by category ID in ascending order. CategoryAttributes are ordered by attribute name in ascending order. For each category attribute, the full attribute definition with predefined values is included.
 
 ### Errors
 

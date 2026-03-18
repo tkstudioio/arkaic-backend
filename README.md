@@ -83,19 +83,30 @@ Tutti gli endpoint richiedono autenticazione via Bearer token (tranne `/api/auth
 
 | Metodo | Endpoint                    | Descrizione                                        |
 | ------ | --------------------------- | -------------------------------------------------- |
-| GET    | `/api/listings`             | Lista listing (esclusi propri) con paginazione e filtro categoria |
-| POST   | `/api/listings`             | Crea nuovo listing con categoria opzionale        |
+| GET    | `/api/listings`             | Lista listing (esclusi propri) con paginazione, filtro categoria e attributi |
+| POST   | `/api/listings`             | Crea nuovo listing con categoria opzionale e attributi |
+| PATCH  | `/api/listings/:id`         | Aggiorna listing (nome, prezzo, descrizione, categoria, attributi) |
 | GET    | `/api/listings/my-listings` | Elenca propri listing                              |
-| GET    | `/api/listings/:id`         | Dettagli listing specifico                         |
+| GET    | `/api/listings/:id`         | Dettagli listing specifico con attributi           |
 
 [Dettagli completi](docs/api-listings.md)
+
+### Attributes
+
+| Metodo | Endpoint                            | Descrizione                                        |
+| ------ | ----------------------------------- | -------------------------------------------------- |
+| GET    | `/api/attributes`                   | Elenca tutti gli attributi con valori predefiniti  |
+| GET    | `/api/attributes/by-category/:id`   | Attributi applicabili a una categoria             |
+| GET    | `/api/attributes/filters/:id`       | Attributi filtrabili con valori usati nei listing |
+
+[Dettagli completi](docs/api-attributes.md)
 
 ### Categories
 
 | Method | Endpoint              | Description                                      |
 | ------ | --------------------- | ------------------------------------------------ |
 | GET    | `/api/categories`     | List root categories (top level)        |
-| GET    | `/api/categories/:slug` | List subcategories of a category by slug  |
+| GET    | `/api/categories/:slug` | List subcategories and attributes of a category by slug  |
 
 [Full details](docs/api-categories.md)
 

@@ -78,6 +78,65 @@
       ]
     },
     {
+      "name": "Attributes",
+      "item": [
+        {
+          "name": "List All Attributes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/attributes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attributes"]
+            },
+            "description": "List all attributes in the system with their predefined values"
+          }
+        },
+        {
+          "name": "Get Attributes by Category",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/attributes/by-category/2",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attributes", "by-category", "2"]
+            },
+            "description": "Get attributes that apply to a specific category with required/filterable flags"
+          }
+        },
+        {
+          "name": "Get Filterable Attributes for Category",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/attributes/filters/2",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attributes", "filters", "2"]
+            },
+            "description": "Get filterable attributes with DISTINCT values from actual listings in category"
+          }
+        }
+      ]
+    },
+    {
       "name": "Categories",
       "item": [
         {
@@ -113,7 +172,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "categories", "electronics"]
             },
-            "description": "Get details of a specific category and list its direct children. Example slug: 'electronics', 'clothing', 'shoes', 'phones', 'laptops', 'bags'"
+            "description": "Get details of a specific category, its direct children, and its attributes. Example slug: 'electronics', 'clothing', 'shoes', 'phones', 'laptops', 'bags'"
           }
         }
       ]
@@ -137,14 +196,40 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Bitcoin Hardware Wallet\",\n  \"price\": 5000,\n  \"categoryId\": 2,\n  \"signature\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n}"
+              "raw": "{\n  \"name\": \"Bitcoin Hardware Wallet\",\n  \"price\": 5000,\n  \"description\": \"Brand new hardware wallet, sealed in original packaging.\",\n  \"categoryId\": 2,\n  \"attributes\": [\n    { \"attributeId\": 1, \"valueId\": 20 },\n    { \"attributeId\": 2, \"valueBool\": true }\n  ],\n  \"signature\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/listings",
               "host": ["{{baseUrl}}"],
               "path": ["api", "listings"]
             },
-            "description": "Create a new listing (requires Bearer token + Schnorr signature over {name, price, [categoryId]}). categoryId is optional."
+            "description": "Create a new listing (requires Bearer token + Schnorr signature). Supports optional categoryId and attributes array."
+          }
+        },
+        {
+          "name": "Update Listing",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Item Name\",\n  \"price\": 6000,\n  \"description\": \"Updated description of the item.\",\n  \"categoryId\": 3,\n  \"attributes\": [\n    { \"attributeId\": 4, \"valueId\": 30 },\n    { \"attributeId\": 5, \"valueBool\": false }\n  ],\n  \"signature\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/listings/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "listings", "1"]
+            },
+            "description": "Update an existing listing (name, price, description, category, attributes). Only seller can update."
           }
         },
         {
@@ -158,7 +243,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/listings?limit=20&offset=0&categoryId=2",
+              "raw": "{{baseUrl}}/api/listings?limit=20&offset=0&categoryId=2&attr_1=20&attr_3=11",
               "host": ["{{baseUrl}}"],
               "path": ["api", "listings"],
               "query": [
@@ -174,10 +259,20 @@
                   "key": "categoryId",
                   "value": "2",
                   "disabled": true
+                },
+                {
+                  "key": "attr_1",
+                  "value": "20",
+                  "disabled": true
+                },
+                {
+                  "key": "attr_3",
+                  "value": "11",
+                  "disabled": true
                 }
               ]
             },
-            "description": "List all listings except own (paginated). categoryId is optional query parameter to filter by category."
+            "description": "List all listings except own (paginated). Supports categoryId and attribute filters (attr_<attributeId>=<valueId>)."
           }
         },
         {
