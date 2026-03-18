@@ -18,14 +18,27 @@ Endpoint per registrazione e login basati su firma Schnorr + JWT.
 
 ### listings.ts — Prodotti marketplace
 
-CRUD per i listing del marketplace. Tutti gli endpoint (tranne GET) richiedono auth. Listings can optionally belong to a category via `categoryId`. Category filtering supported on GET endpoints.
+CRUD per i listing del marketplace. Tutti gli endpoint (tranne GET) richiedono auth. Listings can optionally belong to a category via `categoryId`. Supports category and attribute-based filtering on GET endpoints. Attribute validation enforces category-attribute associations, type-correct values, and required attributes.
 
 | Metodo | Path           | Auth                         | Scopo                                                 |
 | ------ | -------------- | ---------------------------- | ----------------------------------------------------- |
-| POST   | `/`            | bearerAuth + verifySignature | Crea listing (valida price > dust fee, opt. categoryId) |
-| GET    | `/`            | bearerAuth                   | Lista listing paginati con filtro categoria opzionale |
-| GET    | `/my-listings` | bearerAuth                   | Lista listing dell'utente autenticato (include category) |
-| GET    | `/:id`         | bearerAuth                   | Dettaglio listing con seller e category            |
+| POST   | `/`            | bearerAuth + verifySignature | Crea listing (valida price > dust fee, opt. categoryId + attributes), returns 201 |
+| PATCH  | `/:id`         | bearerAuth + verifySignature | Update listing fields, category, and/or attributes (atomic) |
+| GET    | `/`            | bearerAuth                   | Lista listing paginati con filtro categoria e attributi (`attr_<id>=<valueId>`) |
+| GET    | `/my-listings` | bearerAuth                   | Lista listing dell'utente autenticato (include category + attributes) |
+| GET    | `/:id`         | bearerAuth                   | Dettaglio listing con seller, category (with parent), and attributes |
+
+---
+
+### attributes.ts — Product attributes
+
+Read-only endpoints for browsing attributes and building dynamic category filters. All endpoints require `bearerAuth`.
+
+| Metodo | Path                        | Auth       | Scopo                                                        |
+| ------ | --------------------------- | ---------- | ------------------------------------------------------------ |
+| GET    | `/`                         | bearerAuth | List all attributes with their predefined values             |
+| GET    | `/by-category/:categoryId`  | bearerAuth | Attributes for a category with required/isFilterable flags   |
+| GET    | `/filters/:categoryId`      | bearerAuth | Filterable attributes with DISTINCT values from actual listings |
 
 ---
 
@@ -33,10 +46,10 @@ CRUD per i listing del marketplace. Tutti gli endpoint (tranne GET) richiedono a
 
 Read-only endpoints for browsing the hierarchical category tree. All endpoints require `bearerAuth`.
 
-| Metodo | Path      | Auth       | Scopo                                      |
-| ------ | --------- | ---------- | ------------------------------------------ |
-| GET    | `/`       | bearerAuth | List root categories (childrenOf is null)  |
-| GET    | `/:slug`  | bearerAuth | List children of a category by its slug    |
+| Metodo | Path      | Auth       | Scopo                                                         |
+| ------ | --------- | ---------- | ------------------------------------------------------------- |
+| GET    | `/`       | bearerAuth | List root categories with children (childrenOf is null)       |
+| GET    | `/:slug`  | bearerAuth | Category detail with children and categoryAttributes (with attribute values) |
 
 ---
 

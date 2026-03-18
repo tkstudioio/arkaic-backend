@@ -34,6 +34,7 @@ src/
 │   │   ├── index.ts           # Router composition: monta tutti i sub-router
 │   │   ├── auth.ts            # Register, challenge, login (Schnorr + JWT)
 │   │   ├── listings.ts        # CRUD prodotti del marketplace
+│   │   ├── attributes.ts      # Attribute browsing, category-scoped attributes, dynamic filters
 │   │   ├── categories.ts      # Category tree browsing (root categories, children by slug)
 │   │   ├── chats.ts           # Conversazioni buyer-seller per listing
 │   │   ├── messages.ts        # Messaggi, offerte, accettazione offerte
@@ -50,8 +51,9 @@ src/
 | Prefisso         | File          | Scopo                                             |
 | ---------------- | ------------- | ------------------------------------------------- |
 | `/api/auth`      | `auth.ts`     | Registrazione, challenge nonce, login JWT        |
-| `/api/listings`  | `listings.ts` | CRUD listing con firma Schnorr, supporto categoria |
+| `/api/listings`  | `listings.ts` | CRUD listing con firma Schnorr, supporto categoria e attributi |
 | `/api/categories`| `categories.ts` | Browsing albero categorie gerarchiche            |
+| `/api/attributes`| `attributes.ts` | Attribute browsing, category-scoped, dynamic filters |
 | `/api/chats`     | `chats.ts`    | Gestione chat buyer-seller                       |
 | `/api/messages`  | `messages.ts` | Messaggi, offerte, risposta offerte              |
 | `/api/escrows`   | `escrows.ts`  | Escrow lifecycle (create, collab, refund)        |
@@ -76,12 +78,21 @@ src/
 | **Escrow**          | Record VTXO escrow con stato, pubkey, PSBT      | `address` (taproot)  |
 | **Review**          | Recensione utente legata a un escrow            | `id`                 |
 | **Challenge**       | Nonce per autenticazione con scadenza           | `id`                 |
+| **Attribute**       | Dynamic product attribute (select or boolean type) | `id`              |
+| **AttributeValue**  | Predefined value for a select attribute         | `id`                 |
+| **CategoryAttribute** | Links an attribute to a category (with required/filterable flags) | `id` |
+| **ListingAttribute** | Assigns an attribute value to a listing         | `id` (unique on listingId+attributeId) |
 
 ### Relazioni chiave
 
 - Account → Listing (seller)
 - Account → Chat (buyer, arbiter)
 - Listing → Chat (one-to-many)
+- Listing → ListingAttribute (one-to-many)
+- Category → CategoryAttribute (one-to-many)
+- Attribute → AttributeValue (one-to-many)
+- Attribute → CategoryAttribute (one-to-many)
+- Attribute → ListingAttribute (one-to-many)
 - Chat → Message (one-to-many)
 - Chat → Escrow (one-to-one)
 - Message → Offer (one-to-one, opzionale)
