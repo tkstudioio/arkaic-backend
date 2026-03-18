@@ -81,14 +81,23 @@ Tutti gli endpoint richiedono autenticazione via Bearer token (tranne `/api/auth
 
 ### Listing
 
-| Metodo | Endpoint                    | Descrizione                                    |
-| ------ | --------------------------- | ---------------------------------------------- |
-| GET    | `/api/listings`             | Lista listing (esclusi propri) con paginazione |
-| POST   | `/api/listings`             | Crea nuovo listing                             |
-| GET    | `/api/listings/my-listings` | Elenca propri listing                          |
-| GET    | `/api/listings/:id`         | Dettagli listing specifico                     |
+| Metodo | Endpoint                    | Descrizione                                        |
+| ------ | --------------------------- | -------------------------------------------------- |
+| GET    | `/api/listings`             | Lista listing (esclusi propri) con paginazione e filtro categoria |
+| POST   | `/api/listings`             | Crea nuovo listing con categoria opzionale        |
+| GET    | `/api/listings/my-listings` | Elenca propri listing                              |
+| GET    | `/api/listings/:id`         | Dettagli listing specifico                         |
 
 [Dettagli completi](docs/api-listings.md)
+
+### Categories
+
+| Method | Endpoint              | Description                                      |
+| ------ | --------------------- | ------------------------------------------------ |
+| GET    | `/api/categories`     | List root categories (top level)        |
+| GET    | `/api/categories/:slug` | List subcategories of a category by slug  |
+
+[Full details](docs/api-categories.md)
 
 ### Chat
 

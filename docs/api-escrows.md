@@ -2,7 +2,7 @@
 
 Escrows hold Bitcoin funds in a multisig contract during the purchase flow. Each escrow has two spend paths: **collaborative** (both buyer and seller agree) and **refund** (after timelock expires). This document covers both paths and all intermediate steps.
 
-## Autenticazione
+## Authentication
 
 All endpoints in this group require a valid Bearer token (obtained from `/api/auth/login`). Authorization is enforced — users can only view escrows where they are the buyer or seller.
 
@@ -36,7 +36,7 @@ fundLocked (when fully funded)
 
 Create an escrow for an accepted offer. Generates the escrow address and initializes state.
 
-**Autenticazione:** Bearer token + Schnorr signature
+**Authentication:** Bearer token + Schnorr signature
 **Buyer pubkey:** Extracted from Bearer token
 **Chat requirement:** Chat must exist and have an accepted offer
 
@@ -74,7 +74,7 @@ The signature must verify over the JSON-serialized body (excluding signature) wi
   "price": "number — final transaction price (from accepted offer, or listing price if no offer)",
   "timelockExpiry": "number — Unix timestamp",
   "chatId": "number",
-  "status": "awaitingFunds",
+  "status": "awaitingFunds | partiallyFunded | fundLocked",
   "sellerSignedCollabPsbt": "null",
   "collabArkTxid": "null",
   "serverSignedCheckpoints": "null",
@@ -86,15 +86,20 @@ The signature must verify over the JSON-serialized body (excluding signature) wi
 }
 ```
 
+**Long-Polling Behavior**: The request will block for up to 30 seconds waiting for the first VTXO payment to arrive. If a payment is detected, the escrow status is automatically updated to `partiallyFunded` or `fundLocked` and returned. If no payment is detected within 30 seconds, the response returns with status `awaitingFunds`. The client should poll GET `/api/escrows/address/:address` to check for updates.
+
 ### Side Effects
 
-- Both buyer and seller receive a WebSocket notification:
-  - Type: `"escrow_update"`
+- Escrow is created with initial status `awaitingFunds`
+- If payment is detected during the 30-second wait, status is automatically updated to `partiallyFunded` (if below price) or `fundLocked` (if at or above price)
+- A system message is added to the chat documenting the funding status
+- Both buyer and seller receive WebSocket notifications:
+  - Type: `"escrow_update"` (if status changed)
   - Includes `address`
 
-### Errori
+### Errors
 
-| Status | Descrizione |
+| Status | Description |
 | ------ | ----------- |
 | 400    | Invalid JSON schema |
 | 401    | Missing or invalid Bearer token |
@@ -102,7 +107,7 @@ The signature must verify over the JSON-serialized body (excluding signature) wi
 | 403    | Only the buyer can create an escrow |
 | 404    | Chat not found |
 
-### Esempio curl
+### Example curl
 
 ```bash
 TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -161,14 +166,14 @@ Path parameters:
 }
 ```
 
-### Errori
+### Errors
 
-| Status | Descrizione |
+| Status | Description |
 | ------ | ----------- |
 | 401    | Missing or invalid Bearer token |
 | 404    | Escrow not found |
 
-### Esempio curl
+### Example curl
 
 ```bash
 TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -212,15 +217,15 @@ If funds are detected:
 - If total VTXO value >= price: status becomes `fundLocked`
 - If no change: returns current status
 
-### Errori
+### Errors
 
-| Status | Descrizione |
+| Status | Description |
 | ------ | ----------- |
 | 401    | Missing or invalid Bearer token |
 | 404    | Escrow not found |
 | 502    | Failed to check escrow funding (Ark indexer error) |
 
-### Esempio curl
+### Example curl
 
 ```bash
 TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -263,9 +268,9 @@ The PSBT is pre-constructed with:
 - Output: the full amount to the seller's recipient address
 - Spend path: collaborative (requires 3-of-3 signatures: buyer, seller, server)
 
-#### Errori
+#### Errors
 
-| Status | Descrizione |
+| Status | Description |
 | ------ | ----------- |
 | 400    | Cannot build PSBT in {status} status (not fundLocked) |
 | 401    | Missing or invalid Bearer token |
@@ -306,9 +311,9 @@ Body:
 
 Escrow status is updated to `sellerReady`. Seller's PSBT is stored.
 
-#### Errori
+#### Errors
 
-| Status | Descrizione |
+| Status | Description |
 | ------ | ----------- |
 | 400    | Invalid JSON schema |
 | 401    | Missing or invalid Bearer token |
@@ -362,9 +367,9 @@ If not ready:
 }
 ```
 
-#### Errori
+#### Errors
 
-| Status | Descrizione |
+| Status | Description |
 | ------ | ----------- |
 | 401    | Missing or invalid Bearer token |
 | 403    | Forbidden — not the buyer |
@@ -409,9 +414,9 @@ Body:
 
 The server submits the PSBT to Ark and receives checkpoint transactions to be signed.
 
-#### Errori
+#### Errors
 
-| Status | Descrizione |
+| Status | Description |
 | ------ | ----------- |
 | 400    | Invalid JSON schema |
 | 400    | Seller has not signed yet (status not sellerReady) |
@@ -462,9 +467,9 @@ Body:
 }
 ```
 
-#### Errori
+#### Errors
 
-| Status | Descrizione |
+| Status | Description |
 | ------ | ----------- |
 | 400    | Invalid JSON schema |
 | 400    | Transaction not submitted yet (status not buyerSubmitted) |
@@ -519,9 +524,9 @@ If not ready:
 }
 ```
 
-#### Errori
+#### Errors
 
-| Status | Descrizione |
+| Status | Description |
 | ------ | ----------- |
 | 401    | Missing or invalid Bearer token |
 | 403    | Forbidden — not the seller |
@@ -564,9 +569,9 @@ Body:
 }
 ```
 
-#### Errori
+#### Errors
 
-| Status | Descrizione |
+| Status | Description |
 | ------ | ----------- |
 | 400    | Invalid JSON schema |
 | 400    | Buyer has not signed checkpoints yet (status not buyerCheckpointsSigned) |
@@ -616,9 +621,9 @@ The PSBT is constructed with:
 - Output: full amount to buyer's recipient address
 - Spend path: refund (requires buyer + server signatures; CLTV timelock applies)
 
-#### Errori
+#### Errors
 
-| Status | Descrizione |
+| Status | Description |
 | ------ | ----------- |
 | 401    | Missing or invalid Bearer token |
 | 403    | Forbidden — not the buyer |
@@ -661,9 +666,9 @@ Body:
 }
 ```
 
-#### Errori
+#### Errors
 
-| Status | Descrizione |
+| Status | Description |
 | ------ | ----------- |
 | 400    | Invalid JSON schema |
 | 401    | Missing or invalid Bearer token |
@@ -711,9 +716,9 @@ Note: The buyer signs the server-provided checkpoint txs. The server does not re
 }
 ```
 
-#### Errori
+#### Errors
 
-| Status | Descrizione |
+| Status | Description |
 | ------ | ----------- |
 | 400    | Invalid JSON schema |
 | 400    | Cannot refund escrow in {status} status (only fundLocked, partiallyFunded, sellerReady allowed) |

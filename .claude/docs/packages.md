@@ -18,13 +18,13 @@ Endpoint per registrazione e login basati su firma Schnorr + JWT.
 
 ### listings.ts — Prodotti marketplace
 
-CRUD per i listing del marketplace. Tutti gli endpoint (tranne GET) richiedono auth. Listings can optionally belong to a category via `categoryId`.
+CRUD per i listing del marketplace. Tutti gli endpoint (tranne GET) richiedono auth. Listings can optionally belong to a category via `categoryId`. Category filtering supported on GET endpoints.
 
-| Metodo | Path           | Auth                         | Scopo                                              |
-| ------ | -------------- | ---------------------------- | -------------------------------------------------- |
+| Metodo | Path           | Auth                         | Scopo                                                 |
+| ------ | -------------- | ---------------------------- | ----------------------------------------------------- |
 | POST   | `/`            | bearerAuth + verifySignature | Crea listing (valida price > dust fee, opt. categoryId) |
-| GET    | `/`            | bearerAuth                   | Lista listing (paginati, escludi propri, include category) |
-| GET    | `/my-listings` | bearerAuth                   | Lista listing dell'utente autenticato (include category)   |
+| GET    | `/`            | bearerAuth                   | Lista listing paginati con filtro categoria opzionale |
+| GET    | `/my-listings` | bearerAuth                   | Lista listing dell'utente autenticato (include category) |
 | GET    | `/:id`         | bearerAuth                   | Dettaglio listing con seller e category            |
 
 ---
@@ -72,11 +72,11 @@ Il file piu' complesso. Gestisce l'intero ciclo di vita dell'escrow Bitcoin.
 
 #### Endpoint generali
 
-| Metodo | Path                | Auth                         | Scopo                                               |
-| ------ | ------------------- | ---------------------------- | --------------------------------------------------- |
-| GET    | `/:chatId`          | bearerAuth                   | Escrow per chat ID                                  |
-| GET    | `/address/:address` | bearerAuth                   | Escrow per address (+ auto-update stato da indexer) |
-| POST   | `/:chatId`          | bearerAuth + verifySignature | Crea/upsert escrow                                  |
+| Metodo | Path                | Auth                         | Scopo                                                  |
+| ------ | ------------------- | ---------------------------- | ------------------------------------------------------ |
+| GET    | `/:chatId`          | bearerAuth                   | Escrow per chat ID                                     |
+| GET    | `/address/:address` | bearerAuth                   | Escrow per address (auto-update stato da indexer)     |
+| POST   | `/:chatId`          | bearerAuth + verifySignature | Crea escrow con long-polling (attesa 30s primo VTXO)  |
 
 #### Flusso collaborativo (3-of-3)
 

@@ -22,11 +22,12 @@ Create a new listing. Requires Schnorr signature over the listing data.
 {
   "name": "string — listing title (minimum 3 characters)",
   "price": "number — price in satoshi (must exceed dust fee)",
-  "signature": "string — hex-encoded Schnorr signature over {name, price}"
+  "categoryId": "number (optional) — ID of the category this listing belongs to",
+  "signature": "string — hex-encoded Schnorr signature over {name, price, [categoryId]}"
 }
 ```
 
-The signature must be a valid Schnorr signature over the JSON-serialized request body (excluding the signature field itself) with keys sorted alphabetically. This proves the seller approves this listing creation.
+The signature must be a valid Schnorr signature over the JSON-serialized request body (excluding the signature field itself) with keys sorted alphabetically. This proves the seller approves this listing creation. The `categoryId` field is optional; if provided, it must reference an existing category.
 
 ### Response (200)
 
@@ -37,28 +38,38 @@ The signature must be a valid Schnorr signature over the JSON-serialized request
   "price": "number — price in satoshi",
   "sellerPubkey": "string — hex-encoded public key of seller",
   "signature": "string — the signature provided in the request",
-  "createdAt": "ISO 8601 datetime — when listing was created"
+  "createdAt": "ISO 8601 datetime — when listing was created",
+  "categoryId": "number | null — ID of the assigned category (null if not set)",
+  "category": {
+    "id": "number — category ID",
+    "name": "string — category name",
+    "slug": "string — category slug",
+    "childrenOf": "number | null — parent category ID"
+  } | null
 }
 ```
 
-### Errori
+### Errors
 
-| Status | Descrizione |
+| Status | Description |
 | ------ | ----------- |
 | 400    | Price is less than or equal to Ark provider's dust fee |
-| 400    | Invalid JSON schema (missing or wrong type for name, price, signature) |
+| 400    | Invalid JSON schema (missing or wrong type for name, price, signature, categoryId) |
 | 401    | Missing or invalid Bearer token |
 | 401    | Invalid signature — does not verify against the seller's pubkey |
+| 404    | Category not found (if categoryId was provided but does not exist) |
 
-### Esempio curl
+### Example curl
 
 ```bash
 TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 PUBKEY="02abcd..."
 
-# Create signature over sorted {"name": "...", "price": ...}
+# Create signature over sorted {"categoryId": 1, "name": "...", "price": ...}
+# (Note: only include categoryId in signature if it's present in the request)
 SIGNATURE="deadbeef..."
 
+# Without category
 curl -X POST http://localhost:3000/api/listings \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
@@ -67,27 +78,40 @@ curl -X POST http://localhost:3000/api/listings \
     "price": 5000,
     "signature": "'$SIGNATURE'"
   }'
+
+# With category (categoryId=1 for Electronics)
+curl -X POST http://localhost:3000/api/listings \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "iPhone 15 Pro",
+    "price": 15000,
+    "categoryId": 1,
+    "signature": "'$SIGNATURE'"
+  }'
 ```
 
 ---
 
 ## `GET /api/listings`
 
-List all active listings (excluding listings created by the authenticated user). Returns paginated results.
+List all active listings (excluding listings created by the authenticated user). Returns paginated results. Listings can be filtered by category.
 
-**Autenticazione:** Bearer token
+**Authentication:** Bearer token
 **Pagination:** limit (default 20, max 100) and offset (default 0)
+**Category filtering:** optional categoryId query parameter
 
 ### Request
 
 Query parameters:
 
 ```
-GET /api/listings?limit=20&offset=0
+GET /api/listings?limit=20&offset=0&categoryId=1
 ```
 
-- `limit`: Maximum number of listings to return (capped at 100)
-- `offset`: Number of listings to skip (for pagination)
+- `limit`: Maximum number of listings to return (capped at 100, default 20)
+- `offset`: Number of listings to skip for pagination (default 0)
+- `categoryId`: (Optional) Category ID to filter listings by. If provided, only listings in that category are returned.
 
 ### Response (200)
 
@@ -100,6 +124,13 @@ GET /api/listings?limit=20&offset=0
     "sellerPubkey": "string — hex-encoded seller pubkey",
     "signature": "string — creator signature",
     "createdAt": "ISO 8601 datetime",
+    "categoryId": "number | null — category ID (null if not assigned)",
+    "category": {
+      "id": "number — category ID",
+      "name": "string — category name",
+      "slug": "string — category slug",
+      "childrenOf": "number | null — parent category ID"
+    } | null,
     "seller": {
       "pubkey": "string — seller's public key",
       "username": "string — seller's username",
@@ -110,7 +141,7 @@ GET /api/listings?limit=20&offset=0
 ]
 ```
 
-Results are ordered by listing ID in descending order (newest first). Listings owned by the authenticated user are excluded.
+Results are ordered by listing ID in descending order (newest first). Listings owned by the authenticated user are excluded. If `categoryId` is provided as a query parameter, results are filtered to only that category.
 
 ### Errori
 
@@ -118,7 +149,7 @@ Results are ordered by listing ID in descending order (newest first). Listings o
 | ------ | ----------- |
 | 401    | Missing or invalid Bearer token |
 
-### Esempio curl
+### Example curl
 
 ```bash
 TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -130,6 +161,10 @@ curl -X GET "http://localhost:3000/api/listings?limit=20&offset=0" \
 # Get next 20 listings
 curl -X GET "http://localhost:3000/api/listings?limit=20&offset=20" \
   -H "Authorization: Bearer $TOKEN"
+
+# Filter listings by category (e.g., Electronics category with id=2)
+curl -X GET "http://localhost:3000/api/listings?limit=20&offset=0&categoryId=2" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ---
@@ -138,7 +173,7 @@ curl -X GET "http://localhost:3000/api/listings?limit=20&offset=20" \
 
 List all active listings created by the authenticated user.
 
-**Autenticazione:** Bearer token
+**Authentication:** Bearer token
 
 ### Request
 
@@ -159,6 +194,13 @@ No query parameters.
     "sellerPubkey": "string — hex-encoded seller pubkey",
     "signature": "string — creator signature",
     "createdAt": "ISO 8601 datetime",
+    "categoryId": "number | null — category ID (null if not assigned)",
+    "category": {
+      "id": "number — category ID",
+      "name": "string — category name",
+      "slug": "string — category slug",
+      "childrenOf": "number | null — parent category ID"
+    } | null,
     "seller": {
       "pubkey": "string — seller's public key",
       "username": "string — seller's username",
@@ -171,7 +213,7 @@ No query parameters.
 
 Includes seller details. Results are unordered (returned as-is from database).
 
-### Errori
+### Errors
 
 | Status | Descrizione |
 | ------ | ----------- |
@@ -192,7 +234,7 @@ curl -X GET http://localhost:3000/api/listings/my-listings \
 
 Get details of a specific listing by ID.
 
-**Autenticazione:** Bearer token
+**Authentication:** Bearer token
 
 ### Request
 
@@ -214,6 +256,13 @@ Path parameters:
   "sellerPubkey": "string — hex-encoded seller pubkey",
   "signature": "string — creator signature",
   "createdAt": "ISO 8601 datetime",
+  "categoryId": "number | null — category ID (null if not assigned)",
+  "category": {
+    "id": "number — category ID",
+    "name": "string — category name",
+    "slug": "string — category slug",
+    "childrenOf": "number | null — parent category ID"
+  } | null,
   "seller": {
     "pubkey": "string — seller's public key",
     "username": "string — seller's username",
@@ -223,7 +272,7 @@ Path parameters:
 }
 ```
 
-### Errori
+### Errors
 
 | Status | Descrizione |
 | ------ | ----------- |

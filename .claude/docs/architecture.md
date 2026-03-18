@@ -47,15 +47,15 @@ src/
 
 ## Route Map
 
-| Prefisso        | File          | Scopo                                     |
-| --------------- | ------------- | ----------------------------------------- |
-| `/api/auth`     | `auth.ts`     | Registrazione, challenge nonce, login JWT |
-| `/api/listings`   | `listings.ts`   | CRUD listing con firma Schnorr            |
-| `/api/categories` | `categories.ts` | Category tree browsing                    |
-| `/api/chats`      | `chats.ts`      | Gestione chat buyer-seller                |
-| `/api/messages` | `messages.ts` | Messaggi, offerte, risposta offerte       |
-| `/api/escrows`  | `escrows.ts`  | Escrow lifecycle (create, collab, refund) |
-| `/ws`           | `ws.ts`       | WebSocket per notifiche push              |
+| Prefisso         | File          | Scopo                                             |
+| ---------------- | ------------- | ------------------------------------------------- |
+| `/api/auth`      | `auth.ts`     | Registrazione, challenge nonce, login JWT        |
+| `/api/listings`  | `listings.ts` | CRUD listing con firma Schnorr, supporto categoria |
+| `/api/categories`| `categories.ts` | Browsing albero categorie gerarchiche            |
+| `/api/chats`     | `chats.ts`    | Gestione chat buyer-seller                       |
+| `/api/messages`  | `messages.ts` | Messaggi, offerte, risposta offerte              |
+| `/api/escrows`   | `escrows.ts`  | Escrow lifecycle (create, collab, refund)        |
+| `/ws`            | `ws.ts`       | WebSocket per notifiche push                     |
 
 ---
 
@@ -66,8 +66,9 @@ src/
 | Modello             | Scopo                                           | Chiave primaria      |
 | ------------------- | ----------------------------------------------- | -------------------- |
 | **Account**         | Utente con pubkey, username, flag arbiter       | `pubkey`             |
-| **Listing**         | Prodotto in vendita (nome, prezzo, seller)      | `id` (autoincrement) |
-| **Category**        | Categorie gerarchiche (parent/children)         | `id`                 |
+| **Listing**         | Prodotto in vendita (nome, prezzo, seller, categoria) | `id` (autoincrement) |
+| **Category**        | Categorie gerarchiche con slug unico            | `id`                 |
+| **ListingCategory** | Join table legacy per multi-categoria (riserva) | `(listingId, categoryId)` |
 | **Chat**            | Conversazione buyer-seller per un listing       | `id`                 |
 | **Message**         | Messaggio testuale o di sistema in una chat     | `id`                 |
 | **Offer**           | Proposta di prezzo da buyer dentro un messaggio | `id`                 |
