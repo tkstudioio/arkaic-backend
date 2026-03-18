@@ -152,17 +152,16 @@ model Category {
   parent     Category?  @relation("CategoryTree", fields: [childrenOf], references: [id])
   children   Category[] @relation("CategoryTree")
 
-  listings       ListingCategory[]
-  directListings Listing[]         @relation("ListingDirectCategory")
-  attributes     CategoryAttribute[]
+  listings           ListingCategory[]
+  directListings     Listing[]         @relation("ListingDirectCategory")
+  categoryAttributes CategoryAttribute[]
 }
 
 model Attribute {
-  id        Int     @id @default(autoincrement())
+  id        Int           @id @default(autoincrement())
   name      String
-  slug      String  @unique
+  slug      String        @unique
   type      AttributeType
-  unit      String?
 
   values     AttributeValue[]
   categories CategoryAttribute[]
@@ -171,8 +170,6 @@ model Attribute {
 
 enum AttributeType {
   select
-  number
-  text
   boolean
 }
 
@@ -200,20 +197,17 @@ model CategoryAttribute {
 }
 
 model ListingAttribute {
-  id          Int       @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   listingId   Int
   attributeId Int
-
-  // per select (taglia, brand, ecc)
   valueId     Int?
+  valueBool   Boolean?
 
-  // per valori liberi o numeri
-  valueText   String?
-
-  listing   Listing   @relation(fields: [listingId], references: [id])
-  attribute Attribute @relation(fields: [attributeId], references: [id])
+  listing   Listing        @relation(fields: [listingId], references: [id])
+  attribute Attribute      @relation(fields: [attributeId], references: [id])
   value     AttributeValue? @relation(fields: [valueId], references: [id])
 
+  @@unique([listingId, attributeId])
   @@index([listingId])
   @@index([attributeId])
   @@index([valueId])
