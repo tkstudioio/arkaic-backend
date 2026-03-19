@@ -2,7 +2,7 @@
 
 Listings represent products for sale on the marketplace. Sellers create listings with a name and price; buyers browse and initiate purchase negotiations through chats.
 
-## Autenticazione
+## Authentication
 
 All endpoints in this group require a valid Bearer token (obtained from `/api/auth/login`).
 
@@ -12,7 +12,7 @@ All endpoints in this group require a valid Bearer token (obtained from `/api/au
 
 Create a new listing. Requires Schnorr signature over the listing data. Optionally assign attributes that apply to the listing's category.
 
-**Autenticazione:** Bearer token + Schnorr signature
+**Authentication:** Bearer token + Schnorr signature
 **Seller pubkey:** Extracted from Bearer token
 **Price range:** Must be greater than the Ark provider's dust fee
 
@@ -515,11 +515,11 @@ Includes seller details. Results are unordered (returned as-is from database).
 
 ### Errors
 
-| Status | Descrizione |
+| Status | Description |
 | ------ | ----------- |
 | 401    | Missing or invalid Bearer token |
 
-### Esempio curl
+### Example curl
 
 ```bash
 TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -594,12 +594,12 @@ Path parameters:
 
 ### Errors
 
-| Status | Descrizione |
+| Status | Description |
 | ------ | ----------- |
 | 401    | Missing or invalid Bearer token |
 | 404    | Listing not found (invalid ID) |
 
-### Esempio curl
+### Example curl
 
 ```bash
 TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."

@@ -185,7 +185,246 @@ Category {
 
 ---
 
-### Chat
+### Attribute
+
+Dynamic product attributes that define properties for listings (e.g., color, size, weight, brand, condition). Attributes are organized by type and can be associated with categories. Supports six distinct types with different storage and filtering patterns.
+
+```
+Attribute {
+  id: Int @id @default(autoincrement())
+    └─ unique attribute identifier
+
+  name: String
+    └─ human-readable attribute name (e.g., "Color", "Weight", "Brand")
+
+  slug: String @unique
+    ├─ URL-friendly identifier
+    └─ used in API references
+
+  type: AttributeType
+    ├─ enum: 'select' | 'boolean' | 'text' | 'range' | 'date' | 'multi_select'
+    └─ determines storage and validation pattern
+
+  # Range metadata (for type='range' only)
+  rangeMin: Float?
+    └─ minimum allowed numeric value
+
+  rangeMax: Float?
+    └─ maximum allowed numeric value
+
+  rangeStep: Float?
+    └─ incremental step for range values (e.g., 0.1, 1)
+
+  rangeUnit: String?
+    └─ unit of measurement (e.g., "kg", "cm", "mAh")
+
+  # Relationships
+  values: AttributeValue[]
+    └─ predefined values (for select and multi_select types only)
+
+  categories: CategoryAttribute[]
+    └─ categories this attribute applies to
+
+  listings: ListingAttribute[]
+    └─ listings with this attribute assigned
+}
+```
+
+**AttributeType Enum:**
+
+| Type | Purpose | Storage | Values | Filtering |
+|------|---------|---------|--------|-----------|
+| `select` | Single choice from predefined options | `valueId` (FK to AttributeValue) | Predefined | Yes |
+| `boolean` | Yes/no flag | `valueBool` | N/A | Yes |
+| `text` | Free-form text input | `valueText` | User-provided | No |
+| `range` | Numeric value within bounds | `valueText` + `valueFloat` | User-provided | Yes (numeric range) |
+| `date` | ISO 8601 date | `valueText` (YYYY-MM-DD) | User-provided | No |
+| `multi_select` | Multiple predefined options | `ListingAttributeValue` join | Predefined | Yes |
+
+---
+
+### AttributeValue
+
+Predefined option value for `select` and `multi_select` type attributes.
+
+```
+AttributeValue {
+  id: Int @id @default(autoincrement())
+
+  value: String
+    └─ the value label (e.g., "Red", "Blue", "Large")
+
+  attributeId: Int
+    ├─ foreign key to Attribute
+    └─ references Attribute.id
+
+  attribute: Attribute @relation(fields: [attributeId], references: [id])
+    └─ the attribute this value belongs to
+
+  # Relationships
+  listings: ListingAttribute[]
+    └─ listings assigned this value (for select attributes)
+
+  multiSelectListings: ListingAttributeValue[]
+    └─ listings where this value is one of many (for multi_select attributes)
+}
+```
+
+**Constraint:** Only used by `select` and `multi_select` attribute types. For `boolean`, `text`, `range`, and `date` attributes, `values` is empty.
+
+---
+
+### CategoryAttribute
+
+Association linking attributes to categories, with metadata about required/filterable status.
+
+```
+CategoryAttribute {
+  id: Int @id @default(autoincrement())
+
+  categoryId: Int
+    ├─ foreign key to Category
+    └─ references Category.id
+
+  category: Category @relation(fields: [categoryId], references: [id])
+
+  attributeId: Int
+    ├─ foreign key to Attribute
+    └─ references Attribute.id
+
+  attribute: Attribute @relation(fields: [attributeId], references: [id])
+
+  required: Boolean @default(false)
+    ├─ whether this attribute must be provided when creating/updating listings in this category
+    └─ enforced by POST/PATCH /api/listings validation
+
+  isFilterable: Boolean @default(true)
+    ├─ whether this attribute can be used in GET /api/listings filter query params
+    └─ determines inclusion in /api/attributes/filters/:categoryId response
+
+  @@unique([categoryId, attributeId])
+    └─ each attribute appears once per category
+}
+```
+
+**Constraint:** Ensures that a category can only reference an attribute once, and tracks which attributes are mandatory and filterable for that category.
+
+---
+
+### ListingAttribute
+
+Assignment of an attribute value to a listing. Stores type-specific values in different columns based on the attribute type.
+
+```
+ListingAttribute {
+  id: Int @id @default(autoincrement())
+
+  listingId: Int
+    ├─ foreign key to Listing
+    └─ references Listing.id
+
+  listing: Listing @relation(fields: [listingId], references: [id])
+
+  attributeId: Int
+    ├─ foreign key to Attribute
+    └─ references Attribute.id
+
+  attribute: Attribute @relation(fields: [attributeId], references: [id])
+
+  # Type-specific storage columns
+  valueId: Int?
+    ├─ for select attributes: ID of selected AttributeValue
+    └─ null for other types
+
+  value: AttributeValue? @relation(fields: [valueId], references: [id])
+    └─ populated for select attributes
+
+  valueBool: Boolean?
+    ├─ for boolean attributes: true or false
+    └─ null for other types
+
+  valueText: String?
+    ├─ for text, range, and date attributes: the stored value as string
+    │   - text: free-form text
+    │   - range: numeric value (e.g., "25.5")
+    │   - date: ISO date (e.g., "2024-03-19")
+    └─ null for select/boolean/multi_select
+
+  valueFloat: Float?
+    ├─ for range attributes: numeric value for efficient range filtering
+    ├─ null for other types
+    └─ populated from valueText if attribute.type = 'range'
+
+  # Relationships
+  multiValues: ListingAttributeValue[]
+    ├─ for multi_select attributes: array of selected AttributeValue records
+    └─ one ListingAttribute → many ListingAttributeValue (one-to-many)
+
+  @@unique([listingId, attributeId])
+    └─ each listing can have each attribute at most once
+
+  @@index([listingId])
+    └─ efficient lookup of all attributes for a listing
+
+  @@index([attributeId])
+    └─ efficient lookup of all listings with an attribute
+
+  @@index([valueFloat])
+    └─ efficient range filtering on range attributes
+}
+```
+
+**Value Storage Pattern by Type:**
+
+| Attribute Type | Primary Column | Secondary Column | Notes |
+|----------------|-----------------|------------------|-------|
+| `select` | `valueId` | `value` (joined) | Single choice |
+| `boolean` | `valueBool` | — | true/false |
+| `text` | `valueText` | — | Free-form string |
+| `range` | `valueText` + `valueFloat` | — | Numeric; Float for filtering |
+| `date` | `valueText` | — | ISO 8601 (YYYY-MM-DD) |
+| `multi_select` | `multiValues` table | — | Array via join table |
+
+---
+
+### ListingAttributeValue
+
+Join table for `multi_select` attributes, enabling one `ListingAttribute` to reference multiple `AttributeValue` records.
+
+```
+ListingAttributeValue {
+  id: Int @id @default(autoincrement())
+
+  listingAttributeId: Int
+    ├─ foreign key to ListingAttribute
+    └─ references ListingAttribute.id (with onDelete: Cascade)
+
+  listingAttribute: ListingAttribute @relation(fields: [listingAttributeId], references: [id], onDelete: Cascade)
+    └─ the parent listing attribute
+
+  valueId: Int
+    ├─ foreign key to AttributeValue
+    └─ references AttributeValue.id
+
+  value: AttributeValue @relation(fields: [valueId], references: [id])
+    └─ the selected value
+
+  @@unique([listingAttributeId, valueId])
+    └─ prevent duplicate values for same listing attribute
+
+  @@index([listingAttributeId])
+    └─ efficient lookup of all values for an attribute
+
+  @@index([valueId])
+    └─ efficient lookup of listings with a value
+}
+```
+
+**Lifecycle:** When a `ListingAttribute` with `attribute.type = 'multi_select'` is created, one or more `ListingAttributeValue` rows are created linking it to selected `AttributeValue` IDs. If the listing attribute is deleted or updated, cascading rules clean up the join records.
+
+---
+
+
 
 Negotiation conversation between buyer and seller for a specific listing.
 
@@ -540,11 +779,36 @@ Account
 
 Listing
   ├─→ ListingCategory (1:many)
+  ├─→ ListingAttribute (1:many)
   └─→ Chat (1:many)
 
 Category
   ├─→ ListingCategory (1:many)
+  ├─→ CategoryAttribute (1:many)
   └─→ Category (0:many) parent/children
+
+Attribute
+  ├─→ AttributeValue (1:many)
+  ├─→ CategoryAttribute (1:many)
+  └─→ ListingAttribute (1:many)
+
+AttributeValue
+  ├─→ ListingAttribute (1:many) for select type
+  └─→ ListingAttributeValue (1:many) for multi_select type
+
+CategoryAttribute
+  ├─→ Category (many:1)
+  └─→ Attribute (many:1)
+
+ListingAttribute
+  ├─→ Listing (many:1)
+  ├─→ Attribute (many:1)
+  ├─→ AttributeValue (0:many:1) for select type
+  └─→ ListingAttributeValue (1:many) for multi_select type
+
+ListingAttributeValue
+  ├─→ ListingAttribute (many:1)
+  └─→ AttributeValue (many:1)
 
 Chat
   ├─→ Listing (many:1)
@@ -586,6 +850,8 @@ Review
 
 - **Account.pubkey**: Primary key, globally unique
 - **Listing.id**: Auto-incrementing primary key
+- **Listing.categoryId**: Optional foreign key; one listing belongs to at most one category directly
+- **Listing → ListingAttribute**: One-to-many; each listing can have multiple attributes
 - **Chat.id**: Auto-incrementing primary key, unique (buyer, listing) at application level
 - **Message.id**: Auto-incrementing primary key
 - **Offer.messageId**: Unique (one offer per message)
@@ -593,6 +859,11 @@ Review
 - **Escrow.address**: Primary key, deterministic from buyer/seller/timelock
 - **Escrow.chatId**: Unique (one escrow per chat)
 - **Review**: Unique (escrow, reviewer pubkey) composite
+- **Attribute.slug**: Globally unique attribute identifier
+- **AttributeValue**: Foreign key to Attribute; only used by select and multi_select types
+- **CategoryAttribute**: Composite unique (categoryId, attributeId); each attribute appears once per category
+- **ListingAttribute**: Composite unique (listingId, attributeId); each listing has each attribute at most once
+- **ListingAttributeValue**: Composite unique (listingAttributeId, valueId); cascade delete when parent ListingAttribute is deleted
 
 ---
 
@@ -605,3 +876,10 @@ Review
 - The database schema is generated from Prisma via `npx prisma generate`
 - No hard deletes; chats and listings remain in database for audit trail
 - Relationships use implicit foreign keys (via Prisma relations)
+- **Attributes:**
+  - Attribute types (select, boolean, text, range, date, multi_select) determine which columns are populated in ListingAttribute
+  - Range attributes store numeric values in both `valueText` (for display) and `valueFloat` (for efficient range filtering)
+  - Multi-select attributes use a separate `ListingAttributeValue` join table to store multiple values
+  - `CategoryAttribute.required` enforces mandatory attributes when creating/updating listings
+  - `CategoryAttribute.isFilterable` controls which attributes can be used in GET `/api/listings` filter query parameters
+  - Attribute values are read-only through the API (no create/update/delete endpoints)
