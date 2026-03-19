@@ -167,6 +167,11 @@ model Attribute {
   slug      String        @unique
   type      AttributeType
 
+  rangeMin  Float?
+  rangeMax  Float?
+  rangeStep Float?
+  rangeUnit String?
+
   values     AttributeValue[]
   categories CategoryAttribute[]
   listings   ListingAttribute[]
@@ -176,6 +181,9 @@ enum AttributeType {
   select
   boolean
   text
+  range
+  date
+  multi_select
 }
 
 model AttributeValue {
@@ -184,7 +192,8 @@ model AttributeValue {
   attributeId Int
   attribute   Attribute @relation(fields: [attributeId], references: [id])
 
-  listings ListingAttribute[]
+  listings            ListingAttribute[]
+  multiSelectListings ListingAttributeValue[]
 }
 
 model CategoryAttribute {
@@ -208,14 +217,30 @@ model ListingAttribute {
   valueId     Int?
   valueBool   Boolean?
   valueText   String?
+  valueFloat  Float?
 
-  listing   Listing        @relation(fields: [listingId], references: [id])
-  attribute Attribute      @relation(fields: [attributeId], references: [id])
-  value     AttributeValue? @relation(fields: [valueId], references: [id])
+  listing     Listing                @relation(fields: [listingId], references: [id])
+  attribute   Attribute              @relation(fields: [attributeId], references: [id])
+  value       AttributeValue?        @relation(fields: [valueId], references: [id])
+  multiValues ListingAttributeValue[]
 
   @@unique([listingId, attributeId])
   @@index([listingId])
   @@index([attributeId])
+  @@index([valueId])
+  @@index([valueFloat])
+}
+
+model ListingAttributeValue {
+  id                 Int    @id @default(autoincrement())
+  listingAttributeId Int
+  valueId            Int
+
+  listingAttribute ListingAttribute @relation(fields: [listingAttributeId], references: [id], onDelete: Cascade)
+  value            AttributeValue   @relation(fields: [valueId], references: [id])
+
+  @@unique([listingAttributeId, valueId])
+  @@index([listingAttributeId])
   @@index([valueId])
 }
 
