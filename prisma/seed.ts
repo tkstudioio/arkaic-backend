@@ -358,6 +358,14 @@ async function main() {
     await linkCategoryAttribute(cat.id, vintage.id, { required: false, isFilterable: true });
   }
 
+  // ===== ROOT CATEGORY FILTERS =====
+  // Root categories also expose common filters so browsing by top-level category works
+  for (const root of [women, men, kids]) {
+    await linkCategoryAttribute(root.id, brand.id, { required: false, isFilterable: true });
+    await linkCategoryAttribute(root.id, condition.id, { required: false, isFilterable: true });
+    await linkCategoryAttribute(root.id, color.id, { required: false, isFilterable: true });
+  }
+
   console.log("Seed completed: 3 roots, 88 subcategories, 6 attributes, category-attribute links");
 }
 
