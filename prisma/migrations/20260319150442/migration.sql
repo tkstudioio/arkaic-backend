@@ -33,9 +33,12 @@ CREATE TABLE "Listing" (
     "sellerPubkey" TEXT NOT NULL,
     "signature" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "description" TEXT,
     "price" INTEGER NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "Listing_sellerPubkey_fkey" FOREIGN KEY ("sellerPubkey") REFERENCES "Account" ("pubkey") ON DELETE RESTRICT ON UPDATE CASCADE
+    "categoryId" INTEGER,
+    CONSTRAINT "Listing_sellerPubkey_fkey" FOREIGN KEY ("sellerPubkey") REFERENCES "Account" ("pubkey") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "Listing_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -99,8 +102,63 @@ CREATE TABLE "OfferAcceptance" (
 CREATE TABLE "Category" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "name" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
     "childrenOf" INTEGER,
     CONSTRAINT "Category_childrenOf_fkey" FOREIGN KEY ("childrenOf") REFERENCES "Category" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "Attribute" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "name" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "rangeMin" REAL,
+    "rangeMax" REAL,
+    "rangeStep" REAL,
+    "rangeUnit" TEXT
+);
+
+-- CreateTable
+CREATE TABLE "AttributeValue" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "value" TEXT NOT NULL,
+    "attributeId" INTEGER NOT NULL,
+    CONSTRAINT "AttributeValue_attributeId_fkey" FOREIGN KEY ("attributeId") REFERENCES "Attribute" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "CategoryAttribute" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "categoryId" INTEGER NOT NULL,
+    "attributeId" INTEGER NOT NULL,
+    "required" BOOLEAN NOT NULL DEFAULT false,
+    "isFilterable" BOOLEAN NOT NULL DEFAULT true,
+    CONSTRAINT "CategoryAttribute_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "CategoryAttribute_attributeId_fkey" FOREIGN KEY ("attributeId") REFERENCES "Attribute" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "ListingAttribute" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "listingId" INTEGER NOT NULL,
+    "attributeId" INTEGER NOT NULL,
+    "valueId" INTEGER,
+    "valueBool" BOOLEAN,
+    "valueText" TEXT,
+    "valueFloat" REAL,
+    CONSTRAINT "ListingAttribute_listingId_fkey" FOREIGN KEY ("listingId") REFERENCES "Listing" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "ListingAttribute_attributeId_fkey" FOREIGN KEY ("attributeId") REFERENCES "Attribute" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "ListingAttribute_valueId_fkey" FOREIGN KEY ("valueId") REFERENCES "AttributeValue" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "ListingAttributeValue" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "listingAttributeId" INTEGER NOT NULL,
+    "valueId" INTEGER NOT NULL,
+    CONSTRAINT "ListingAttributeValue_listingAttributeId_fkey" FOREIGN KEY ("listingAttributeId") REFERENCES "ListingAttribute" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "ListingAttributeValue_valueId_fkey" FOREIGN KEY ("valueId") REFERENCES "AttributeValue" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -136,10 +194,52 @@ CREATE UNIQUE INDEX "Challenge_pubkey_key" ON "Challenge"("pubkey");
 CREATE UNIQUE INDEX "Review_escrowAddress_reviewerPubkey_key" ON "Review"("escrowAddress", "reviewerPubkey");
 
 -- CreateIndex
+CREATE INDEX "Listing_categoryId_idx" ON "Listing"("categoryId");
+
+-- CreateIndex
+CREATE INDEX "Listing_price_idx" ON "Listing"("price");
+
+-- CreateIndex
+CREATE INDEX "Listing_sellerPubkey_idx" ON "Listing"("sellerPubkey");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Offer_messageId_key" ON "Offer"("messageId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "OfferAcceptance_offerId_key" ON "OfferAcceptance"("offerId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Category_slug_key" ON "Category"("slug");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Attribute_slug_key" ON "Attribute"("slug");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CategoryAttribute_categoryId_attributeId_key" ON "CategoryAttribute"("categoryId", "attributeId");
+
+-- CreateIndex
+CREATE INDEX "ListingAttribute_listingId_idx" ON "ListingAttribute"("listingId");
+
+-- CreateIndex
+CREATE INDEX "ListingAttribute_attributeId_idx" ON "ListingAttribute"("attributeId");
+
+-- CreateIndex
+CREATE INDEX "ListingAttribute_valueId_idx" ON "ListingAttribute"("valueId");
+
+-- CreateIndex
+CREATE INDEX "ListingAttribute_valueFloat_idx" ON "ListingAttribute"("valueFloat");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ListingAttribute_listingId_attributeId_key" ON "ListingAttribute"("listingId", "attributeId");
+
+-- CreateIndex
+CREATE INDEX "ListingAttributeValue_listingAttributeId_idx" ON "ListingAttributeValue"("listingAttributeId");
+
+-- CreateIndex
+CREATE INDEX "ListingAttributeValue_valueId_idx" ON "ListingAttributeValue"("valueId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ListingAttributeValue_listingAttributeId_valueId_key" ON "ListingAttributeValue"("listingAttributeId", "valueId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Escrow_chatId_key" ON "Escrow"("chatId");
