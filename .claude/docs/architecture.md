@@ -78,10 +78,11 @@ src/
 | **Escrow**          | Record VTXO escrow con stato, pubkey, PSBT      | `address` (taproot)  |
 | **Review**          | Recensione utente legata a un escrow            | `id`                 |
 | **Challenge**       | Nonce per autenticazione con scadenza           | `id`                 |
-| **Attribute**       | Dynamic product attribute (select or boolean type) | `id`              |
-| **AttributeValue**  | Predefined value for a select attribute         | `id`                 |
+| **Attribute**       | Dynamic product attribute (select, boolean, text, range, date, multi_select types; range type carries rangeMin/rangeMax/rangeStep/rangeUnit metadata) | `id` |
+| **AttributeValue**  | Predefined value for a select or multi_select attribute | `id`          |
 | **CategoryAttribute** | Links an attribute to a category (with required/filterable flags) | `id` |
-| **ListingAttribute** | Assigns an attribute value to a listing         | `id` (unique on listingId+attributeId) |
+| **ListingAttribute** | Assigns an attribute value to a listing; valueFloat stores numeric value for range type filtering | `id` (unique on listingId+attributeId) |
+| **ListingAttributeValue** | Join table for multi_select attribute values on a listing (one ListingAttribute → many AttributeValue rows) | `id` |
 
 ### Relazioni chiave
 
@@ -93,6 +94,8 @@ src/
 - Attribute → AttributeValue (one-to-many)
 - Attribute → CategoryAttribute (one-to-many)
 - Attribute → ListingAttribute (one-to-many)
+- ListingAttribute → ListingAttributeValue (one-to-many, cascade delete)
+- AttributeValue → ListingAttributeValue (one-to-many)
 - Chat → Message (one-to-many)
 - Chat → Escrow (one-to-one)
 - Message → Offer (one-to-one, opzionale)

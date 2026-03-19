@@ -18,15 +18,15 @@ Endpoint per registrazione e login basati su firma Schnorr + JWT.
 
 ### listings.ts — Prodotti marketplace
 
-CRUD per i listing del marketplace. Tutti gli endpoint (tranne GET) richiedono auth. Listings can optionally belong to a category via `categoryId`. Supports category and attribute-based filtering on GET endpoints. Attribute validation enforces category-attribute associations, type-correct values, and required attributes.
+CRUD per i listing del marketplace. Tutti gli endpoint (tranne GET) richiedono auth. Listings can optionally belong to a category via `categoryId`. Supports category and attribute-based filtering on GET endpoints. Attribute validation enforces category-attribute associations, type-correct values, and required attributes. Supports all six attribute types: select (valueId), boolean (valueBool), text (valueText), range (valueText + valueFloat for numeric filtering), date (ISO YYYY-MM-DD in valueText), multi_select (valueIds array stored via ListingAttributeValue join table).
 
 | Metodo | Path           | Auth                         | Scopo                                                 |
 | ------ | -------------- | ---------------------------- | ----------------------------------------------------- |
-| POST   | `/`            | bearerAuth + verifySignature | Crea listing (valida price > dust fee, opt. categoryId + attributes), returns 201 |
-| PATCH  | `/:id`         | bearerAuth + verifySignature | Update listing fields, category, and/or attributes (atomic) |
-| GET    | `/`            | bearerAuth                   | Lista listing paginati con filtro categoria e attributi (`attr_<id>=<valueId>`) |
-| GET    | `/my-listings` | bearerAuth                   | Lista listing dell'utente autenticato (include category + attributes) |
-| GET    | `/:id`         | bearerAuth                   | Dettaglio listing con seller, category (with parent), and attributes |
+| POST   | `/`            | bearerAuth + verifySignature | Crea listing (valida price > dust fee, opt. categoryId + attributes including multi_select valueIds), returns 201 |
+| PATCH  | `/:id`         | bearerAuth + verifySignature | Update listing fields, category, and/or attributes (atomic; cascade delete handles multi_select cleanup) |
+| GET    | `/`            | bearerAuth                   | Lista listing paginati con filtro categoria e attributi (`attr_<id>=valueId` for select/multi_select, `attr_<id>=true/false` for boolean, `attr_<id>=min,max` for range) |
+| GET    | `/my-listings` | bearerAuth                   | Lista listing dell'utente autenticato (include category + attributes + multiValues) |
+| GET    | `/:id`         | bearerAuth                   | Dettaglio listing con seller, category (with parent), attributes, and multiValues |
 
 ---
 
@@ -36,9 +36,9 @@ Read-only endpoints for browsing attributes and building dynamic category filter
 
 | Metodo | Path                        | Auth       | Scopo                                                        |
 | ------ | --------------------------- | ---------- | ------------------------------------------------------------ |
-| GET    | `/`                         | bearerAuth | List all attributes with their predefined values             |
-| GET    | `/by-category/:categoryId`  | bearerAuth | Attributes for a category with required/isFilterable flags   |
-| GET    | `/filters/:categoryId`      | bearerAuth | Filterable attributes with DISTINCT values from actual listings |
+| GET    | `/`                         | bearerAuth | List all attributes with their predefined values (range metadata fields included automatically) |
+| GET    | `/by-category/:categoryId`  | bearerAuth | Attributes for a category with required/isFilterable flags and range metadata (rangeMin/rangeMax/rangeStep/rangeUnit) |
+| GET    | `/filters/:categoryId`      | bearerAuth | Filterable attributes with DISTINCT values from actual listings; range type returns metadata instead of values; multi_select returns distinct values via join table |
 
 ---
 
