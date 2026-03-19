@@ -180,6 +180,20 @@ listings.patch(
 
     if (!listing) return c.text("Listing not found", 404);
 
+    const activeEscrow = await prisma.escrow.findFirst({
+      where: {
+        chat: { listingId: id },
+        status: { notIn: ["completed", "refunded"] },
+      },
+    });
+
+    if (activeEscrow) {
+      return c.json(
+        { error: "Cannot modify a listing with an active escrow" },
+        409,
+      );
+    }
+
     if (price !== undefined) {
       const { dust } = await arkProvider.getInfo();
       if (price <= dust)
