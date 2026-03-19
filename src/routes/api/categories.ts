@@ -15,7 +15,10 @@ categories.get("/", async (c) => {
       name: true,
       slug: true,
       childrenOf: true,
-      children: true,
+      children: {
+        select: { id: true, name: true, slug: true, childrenOf: true },
+        orderBy: { id: "asc" },
+      },
       parent: true,
     },
     orderBy: { id: "asc" },

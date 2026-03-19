@@ -65,6 +65,10 @@ model Listing {
   categories ListingCategory[]
   chats      Chat[]
   attributes ListingAttribute[]
+
+  @@index([categoryId])
+  @@index([price])
+  @@index([sellerPubkey])
 }
 
 model ListingCategory {
@@ -171,6 +175,7 @@ model Attribute {
 enum AttributeType {
   select
   boolean
+  text
 }
 
 model AttributeValue {
@@ -202,6 +207,7 @@ model ListingAttribute {
   attributeId Int
   valueId     Int?
   valueBool   Boolean?
+  valueText   String?
 
   listing   Listing        @relation(fields: [listingId], references: [id])
   attribute Attribute      @relation(fields: [attributeId], references: [id])
