@@ -93,13 +93,25 @@ Tutti gli endpoint richiedono autenticazione via Bearer token (tranne `/api/auth
 
 ### Attributes
 
+Flexible attribute system supporting six types: **select** (predefined single value), **boolean** (yes/no flag), **text** (free-form text), **range** (numeric with min/max), **date** (ISO 8601), and **multi_select** (multiple predefined values).
+
 | Metodo | Endpoint                            | Descrizione                                        |
 | ------ | ----------------------------------- | -------------------------------------------------- |
-| GET    | `/api/attributes`                   | Elenca tutti gli attributi con valori predefiniti  |
-| GET    | `/api/attributes/by-category/:id`   | Attributi applicabili a una categoria             |
-| GET    | `/api/attributes/filters/:id`       | Attributi filtrabili con valori usati nei listing |
+| GET    | `/api/attributes`                   | Elenca tutti gli attributi con valori predefiniti e metadata |
+| GET    | `/api/attributes/by-category/:id`   | Attributi applicabili a una categoria con info di required/filterable |
+| GET    | `/api/attributes/filters/:id`       | Attributi filtrabili con valori effettivamente usati nei listing |
 
-[Dettagli completi](docs/api-attributes.md)
+When creating or updating listings, provide the appropriate field for each attribute type:
+- `select`: `valueId` (single predefined value)
+- `boolean`: `valueBool` (true/false)
+- `text`: `valueText` (free-form string)
+- `range`: `valueText` (numeric value within bounds)
+- `date`: `valueText` (YYYY-MM-DD format)
+- `multi_select`: `valueIds` (array of predefined value IDs)
+
+Filterable attributes can be used with `GET /api/listings` query parameters: `attr_<id>=<value>` for select/multi_select, `attr_<id>=true|false` for boolean, and `attr_<id>=<min>,<max>` for range.
+
+[Full documentation](docs/api-attributes.md)
 
 ### Categories
 

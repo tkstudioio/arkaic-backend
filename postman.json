@@ -196,14 +196,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Bitcoin Hardware Wallet\",\n  \"price\": 5000,\n  \"description\": \"Brand new hardware wallet, sealed in original packaging.\",\n  \"categoryId\": 2,\n  \"attributes\": [\n    { \"attributeId\": 1, \"valueId\": 20 },\n    { \"attributeId\": 2, \"valueBool\": true }\n  ],\n  \"signature\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n}"
+              "raw": "{\n  \"name\": \"iPhone 15 Pro Max\",\n  \"price\": 50000,\n  \"description\": \"Brand new, sealed in original packaging.\",\n  \"categoryId\": 2,\n  \"attributes\": [\n    { \"attributeId\": 1, \"valueId\": 20 },\n    { \"attributeId\": 2, \"valueBool\": true },\n    { \"attributeId\": 3, \"valueText\": \"Pristine condition, never opened\" },\n    { \"attributeId\": 5, \"valueText\": \"0.22\" },\n    { \"attributeId\": 7, \"valueIds\": [10, 12] },\n    { \"attributeId\": 8, \"valueText\": \"2024-02-15\" }\n  ],\n  \"signature\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/listings",
               "host": ["{{baseUrl}}"],
               "path": ["api", "listings"]
             },
-            "description": "Create a new listing (requires Bearer token + Schnorr signature). Supports optional categoryId and attributes array."
+            "description": "Create a new listing (requires Bearer token + Schnorr signature). Supports optional categoryId and attributes. Attribute fields: valueId (select), valueBool (boolean), valueText (text/range/date), valueIds (multi_select)"
           }
         },
         {
@@ -222,14 +222,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Updated Item Name\",\n  \"price\": 6000,\n  \"description\": \"Updated description of the item.\",\n  \"categoryId\": 3,\n  \"attributes\": [\n    { \"attributeId\": 4, \"valueId\": 30 },\n    { \"attributeId\": 5, \"valueBool\": false }\n  ],\n  \"signature\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n}"
+              "raw": "{\n  \"name\": \"Updated Item Name\",\n  \"price\": 6000,\n  \"description\": \"Updated description of the item.\",\n  \"categoryId\": 3,\n  \"attributes\": [\n    { \"attributeId\": 4, \"valueId\": 30 },\n    { \"attributeId\": 5, \"valueBool\": false },\n    { \"attributeId\": 6, \"valueText\": \"Updated condition notes\" },\n    { \"attributeId\": 7, \"valueText\": \"15.5\" },\n    { \"attributeId\": 8, \"valueIds\": [40, 42] }\n  ],\n  \"signature\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/listings/1",
               "host": ["{{baseUrl}}"],
               "path": ["api", "listings", "1"]
             },
-            "description": "Update an existing listing (name, price, description, category, attributes). Only seller can update."
+            "description": "Update an existing listing (name, price, description, category, attributes). Only seller can update. Same attribute field format as Create."
           }
         },
         {
@@ -243,7 +243,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/listings?limit=20&offset=0&categoryId=2&attr_1=20&attr_3=11",
+              "raw": "{{baseUrl}}/api/listings?limit=20&offset=0&categoryId=2&minPrice=5000&maxPrice=50000&search=&sort=newest&includeChildren=false&attr_1=20&attr_2=true&attr_5=10,100&attr_7=10&attr_7=12",
               "host": ["{{baseUrl}}"],
               "path": ["api", "listings"],
               "query": [
@@ -261,18 +261,58 @@
                   "disabled": true
                 },
                 {
+                  "key": "minPrice",
+                  "value": "5000",
+                  "disabled": true
+                },
+                {
+                  "key": "maxPrice",
+                  "value": "50000",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "newest",
+                  "disabled": true
+                },
+                {
+                  "key": "includeChildren",
+                  "value": "false",
+                  "disabled": true
+                },
+                {
                   "key": "attr_1",
                   "value": "20",
                   "disabled": true
                 },
                 {
-                  "key": "attr_3",
-                  "value": "11",
+                  "key": "attr_2",
+                  "value": "true",
+                  "disabled": true
+                },
+                {
+                  "key": "attr_5",
+                  "value": "10,100",
+                  "disabled": true
+                },
+                {
+                  "key": "attr_7",
+                  "value": "10",
+                  "disabled": true
+                },
+                {
+                  "key": "attr_7",
+                  "value": "12",
                   "disabled": true
                 }
               ]
             },
-            "description": "List all listings except own (paginated). Supports categoryId and attribute filters (attr_<attributeId>=<valueId>)."
+            "description": "List all listings except own (paginated). Supports: categoryId, minPrice/maxPrice, search, sort (newest/oldest/price_asc/price_desc), includeChildren, and attribute filters (attr_<id>=<valueId> for select/multi_select, attr_<id>=true|false for boolean, attr_<id>=<min>,<max> for range)"
           }
         },
         {
