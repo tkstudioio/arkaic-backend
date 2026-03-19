@@ -44,6 +44,10 @@ attributes.get("/by-category/:categoryId", async (c) => {
     required: ca.required,
     isFilterable: ca.isFilterable,
     values: ca.attribute.values,
+    rangeMin: ca.attribute.rangeMin,
+    rangeMax: ca.attribute.rangeMax,
+    rangeStep: ca.attribute.rangeStep,
+    rangeUnit: ca.attribute.rangeUnit,
   }));
 
   return c.json(result);
@@ -100,6 +104,66 @@ attributes.get("/filters/:categoryId", async (c) => {
           slug: ca.attribute.slug,
           type: ca.attribute.type,
           values: null,
+        });
+      }
+    } else if (ca.attribute.type === "range") {
+      const count = await prisma.listingAttribute.count({
+        where: {
+          attributeId: ca.attributeId,
+          listing: { categoryId },
+        },
+      });
+
+      if (count > 0) {
+        filters.push({
+          attributeId: ca.attribute.id,
+          name: ca.attribute.name,
+          slug: ca.attribute.slug,
+          type: ca.attribute.type,
+          values: null,
+          rangeMin: ca.attribute.rangeMin,
+          rangeMax: ca.attribute.rangeMax,
+          rangeStep: ca.attribute.rangeStep,
+          rangeUnit: ca.attribute.rangeUnit,
+        });
+      }
+    } else if (ca.attribute.type === "date") {
+      const count = await prisma.listingAttribute.count({
+        where: {
+          attributeId: ca.attributeId,
+          listing: { categoryId },
+        },
+      });
+
+      if (count > 0) {
+        filters.push({
+          attributeId: ca.attribute.id,
+          name: ca.attribute.name,
+          slug: ca.attribute.slug,
+          type: ca.attribute.type,
+          values: null,
+        });
+      }
+    } else if (ca.attribute.type === "multi_select") {
+      const usedValues = await prisma.listingAttributeValue.findMany({
+        where: {
+          listingAttribute: {
+            attributeId: ca.attributeId,
+            listing: { categoryId },
+          },
+        },
+        select: { value: { select: { id: true, value: true } } },
+        distinct: ["valueId"],
+      });
+
+      const mappedValues = usedValues.map((uv) => uv.value).filter(Boolean);
+      if (mappedValues.length > 0) {
+        filters.push({
+          attributeId: ca.attribute.id,
+          name: ca.attribute.name,
+          slug: ca.attribute.slug,
+          type: ca.attribute.type,
+          values: mappedValues,
         });
       }
     }
