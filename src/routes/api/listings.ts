@@ -617,6 +617,21 @@ listings.get("/", async (c) => {
   };
   const orderBy = orderByMap[sortParam];
 
+  const listingsWithActiveEscrow = await prisma.escrow.findMany({
+    where: {
+      status: { notIn: ["completed", "refunded"] },
+      buyerPubkey: { not: pubkey },
+    },
+    select: { chat: { select: { listingId: true } } },
+  });
+  const hiddenListingIds = listingsWithActiveEscrow
+    .map((e) => e.chat?.listingId)
+    .filter((id): id is number => id !== null && id !== undefined);
+
+  if (hiddenListingIds.length > 0) {
+    where.id = { notIn: hiddenListingIds };
+  }
+
   const [allListings, total] = await Promise.all([
     prisma.listing.findMany({
       where,
