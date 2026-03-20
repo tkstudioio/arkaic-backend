@@ -8,6 +8,114 @@ All endpoints in this group require a valid Bearer token (obtained from `/api/au
 
 ---
 
+## `GET /api/chats`
+
+Get a paginated list of all chats involving the authenticated user (as buyer or seller), ordered by most recent message.
+
+**Authentication:** Bearer token
+**Pagination:** limit (default 20, max 100) and offset (default 0)
+
+### Request
+
+Query parameters:
+
+```
+GET /api/chats?limit=20&offset=0
+```
+
+- `limit`: Maximum number of chats to return (capped at 100, default 20)
+- `offset`: Number of chats to skip for pagination (default 0)
+
+### Response (200)
+
+```json
+{
+  "chats": [
+    {
+      "id": "number — chat ID",
+      "listingId": "number — listing ID",
+      "buyerPubkey": "string — hex-encoded buyer pubkey",
+      "arbiterPubkey": "string | null — hex-encoded arbiter pubkey if assigned",
+      "signature": "string — signature from creation",
+      "status": "string — chat status ('open' or 'closed')",
+      "createdAt": "ISO 8601 datetime",
+      "buyer": {
+        "pubkey": "string",
+        "username": "string",
+        "createdAt": "ISO 8601 datetime",
+        "isArbiter": "boolean"
+      },
+      "listing": {
+        "id": "number",
+        "name": "string",
+        "price": "number",
+        "description": "string | null",
+        "categoryId": "number | null",
+        "sellerPubkey": "string",
+        "createdAt": "ISO 8601 datetime",
+        "seller": {
+          "pubkey": "string",
+          "username": "string",
+          "createdAt": "ISO 8601 datetime",
+          "isArbiter": "boolean"
+        },
+        "category": {
+          "id": "number | null",
+          "name": "string | null",
+          "slug": "string | null"
+        } | null
+      },
+      "escrow": {
+        "status": "string — escrow status (if escrow exists)"
+      } | null,
+      "messages": [
+        {
+          "id": "number",
+          "message": "string | null",
+          "senderPubkey": "string | null",
+          "signature": "string | null",
+          "isSystem": "boolean",
+          "sentAt": "ISO 8601 datetime",
+          "offer": {
+            "id": "number",
+            "price": "number",
+            "valid": "boolean",
+            "createdAt": "ISO 8601 datetime"
+          } | null
+        }
+      ]
+    }
+  ],
+  "total": "number — total count of user's chats"
+}
+```
+
+Chats are ordered by most recent message first (`messages[0].sentAt` descending). Each chat includes only the most recent message (if any messages exist). Includes escrow status (if escrow exists) for quick reference.
+
+### Errors
+
+| Status | Description |
+| ------ | ----------- |
+| 400    | Invalid limit (less than 1 or greater than 100) |
+| 400    | Invalid offset (negative) |
+| 401    | Missing or invalid Bearer token |
+
+### Example curl
+
+```bash
+TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+# Get first 20 chats
+curl -X GET "http://localhost:3000/api/chats?limit=20&offset=0" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Get next page
+curl -X GET "http://localhost:3000/api/chats?limit=20&offset=20" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
 ## `POST /api/chats/:listingId`
 
 Create a new chat for a listing (buyer initiates). If a chat already exists between this buyer and listing, returns the existing chat instead.

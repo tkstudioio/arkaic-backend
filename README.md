@@ -124,8 +124,9 @@ Filterable attributes can be used with `GET /api/listings` query parameters: `at
 
 ### Chat
 
-| Metodo | Endpoint                       | Descrizione                |
-| ------ | ------------------------------ | -------------------------- |
+| Metodo | Endpoint                       | Descrizione                          |
+| ------ | ------------------------------ | ------------------------------------ |
+| GET    | `/api/chats`                   | Elenca chat dell'utente (buyer e seller) con paginazione |
 | POST   | `/api/chats/:listingId`        | Inizia chat con seller     |
 | GET    | `/api/chats/:chatId`           | Dettagli chat con messaggi |
 | GET    | `/api/chats/:chatId/escrow`    | Escrow associato a chat    |
@@ -133,6 +134,16 @@ Filterable attributes can be used with `GET /api/listings` query parameters: `at
 | GET    | `/api/chats/seller/:listingId` | Chat in cui sei seller     |
 
 [Dettagli completi](docs/api-chats.md)
+
+### Favorites
+
+| Metodo | Endpoint                   | Descrizione                          |
+| ------ | -------------------------- | ------------------------------------ |
+| GET    | `/api/favorites`           | Elenca listing preferiti con paginazione |
+| POST   | `/api/favorites/:listingId` | Aggiungi listing ai preferiti (idempotente) |
+| DELETE | `/api/favorites/:listingId` | Rimuovi listing dai preferiti |
+
+[Dettagli completi](docs/api-favorites.md)
 
 ### Messaggi e Offer
 

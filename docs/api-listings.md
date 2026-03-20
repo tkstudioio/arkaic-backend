@@ -106,7 +106,10 @@ The signature must be a valid Schnorr signature over the JSON-serialized request
         }
       ]
     }
-  ]
+  ],
+  "_count": {
+    "favorites": "number — total count of users who have favorited this listing"
+  }
 }
 ```
 
@@ -326,62 +329,69 @@ GET /api/listings?limit=20&offset=0&categoryId=2&attr_1=20&attr_3=11
 ### Response (200)
 
 ```json
-[
-  {
-    "id": "number — listing ID",
-    "name": "string — listing name",
-    "price": "number — price in satoshi",
-    "description": "string | null — listing description",
-    "sellerPubkey": "string — hex-encoded seller pubkey",
-    "signature": "string — creator signature",
-    "createdAt": "ISO 8601 datetime",
-    "categoryId": "number | null — category ID (null if not assigned)",
-    "category": {
-      "id": "number — category ID",
-      "name": "string — category name",
-      "slug": "string — category slug",
-      "childrenOf": "number | null — parent category ID"
-    } | null,
-    "seller": {
-      "pubkey": "string — seller's public key",
-      "username": "string — seller's username",
+{
+  "listings": [
+    {
+      "id": "number — listing ID",
+      "name": "string — listing name",
+      "price": "number — price in satoshi",
+      "description": "string | null — listing description",
+      "sellerPubkey": "string — hex-encoded seller pubkey",
+      "signature": "string — creator signature",
       "createdAt": "ISO 8601 datetime",
-      "isArbiter": "boolean"
-    },
-    "attributes": [
-      {
-        "id": "number — listing attribute record ID",
-        "attributeId": "number",
-        "attribute": {
-          "id": "number",
-          "name": "string",
-          "slug": "string",
-          "type": "enum ('select' | 'boolean' | 'text' | 'range' | 'date' | 'multi_select')"
-        },
-        "valueId": "number | null",
-        "valueBool": "boolean | null",
-        "valueText": "string | null",
-        "valueFloat": "number | null",
-        "value": {
-          "id": "number | null",
-          "value": "string | null"
-        } | null,
-        "multiValues": [
-          {
+      "categoryId": "number | null — category ID (null if not assigned)",
+      "category": {
+        "id": "number — category ID",
+        "name": "string — category name",
+        "slug": "string — category slug",
+        "childrenOf": "number | null — parent category ID"
+      } | null,
+      "seller": {
+        "pubkey": "string — seller's public key",
+        "username": "string — seller's username",
+        "createdAt": "ISO 8601 datetime",
+        "isArbiter": "boolean"
+      },
+      "attributes": [
+        {
+          "id": "number — listing attribute record ID",
+          "attributeId": "number",
+          "attribute": {
             "id": "number",
-            "value": {
+            "name": "string",
+            "slug": "string",
+            "type": "enum ('select' | 'boolean' | 'text' | 'range' | 'date' | 'multi_select')"
+          },
+          "valueId": "number | null",
+          "valueBool": "boolean | null",
+          "valueText": "string | null",
+          "valueFloat": "number | null",
+          "value": {
+            "id": "number | null",
+            "value": "string | null"
+          } | null,
+          "multiValues": [
+            {
               "id": "number",
-              "value": "string"
+              "value": {
+                "id": "number",
+                "value": "string"
+              }
             }
-          }
-        ]
-      }
-    ]
-  }
-]
+          ]
+        }
+      ],
+      "_count": {
+        "favorites": "number — total count of users who have favorited this listing"
+      },
+      "isFavorited": "boolean — whether the authenticated user has favorited this listing"
+    }
+  ],
+  "total": "number — total count of matching listings"
+}
 ```
 
-Results are ordered by listing ID in descending order (newest first), or by the `sort` parameter if provided. Listings owned by the authenticated user are excluded. If `categoryId` is provided as a query parameter, results are filtered to only that category (or child categories if `includeChildren=true`). Attribute filters are combined with AND logic (all filters must match a listing). Search applies to both name and description fields. Price filters use inclusive range logic.
+Results are ordered by listing ID in descending order (newest first), or by the `sort` parameter if provided. Listings owned by the authenticated user are excluded. If `categoryId` is provided as a query parameter, results are filtered to only that category (or child categories if `includeChildren=true`). Attribute filters are combined with AND logic (all filters must match a listing). Search applies to both name and description fields. Price filters use inclusive range logic. The `isFavorited` flag indicates whether the authenticated user has favorited this listing.
 
 ### Errors
 
@@ -469,49 +479,72 @@ No query parameters.
 ### Response (200)
 
 ```json
-[
-  {
-    "id": "number — listing ID",
-    "name": "string — listing name",
-    "price": "number — price in satoshi",
-    "description": "string | null — listing description",
-    "sellerPubkey": "string — hex-encoded seller pubkey",
-    "signature": "string — creator signature",
-    "createdAt": "ISO 8601 datetime",
-    "categoryId": "number | null — category ID (null if not assigned)",
-    "category": {
-      "id": "number — category ID",
-      "name": "string — category name",
-      "slug": "string — category slug",
-      "childrenOf": "number | null — parent category ID"
-    } | null,
-    "seller": {
-      "pubkey": "string — seller's public key",
-      "username": "string — seller's username",
+{
+  "listings": [
+    {
+      "id": "number — listing ID",
+      "name": "string — listing name",
+      "price": "number — price in satoshi",
+      "description": "string | null — listing description",
+      "sellerPubkey": "string — hex-encoded seller pubkey",
+      "signature": "string — creator signature",
       "createdAt": "ISO 8601 datetime",
-      "isArbiter": "boolean"
-    },
-    "attributes": [
-      {
-        "attributeId": "number",
-        "attribute": {
-          "id": "number",
-          "name": "string",
-          "slug": "string",
-          "type": "enum ('select' | 'boolean')"
-        },
-        "value": {
-          "id": "number | null",
-          "value": "string | null"
-        } | null,
-        "valueBool": "boolean | null"
+      "categoryId": "number | null — category ID (null if not assigned)",
+      "category": {
+        "id": "number — category ID",
+        "name": "string — category name",
+        "slug": "string — category slug",
+        "childrenOf": "number | null — parent category ID"
+      } | null,
+      "seller": {
+        "pubkey": "string — seller's public key",
+        "username": "string — seller's username",
+        "createdAt": "ISO 8601 datetime",
+        "isArbiter": "boolean"
+      },
+      "attributes": [
+        {
+          "id": "number — listing attribute record ID",
+          "attributeId": "number",
+          "attribute": {
+            "id": "number",
+            "name": "string",
+            "slug": "string",
+            "type": "enum ('select' | 'boolean' | 'text' | 'range' | 'date' | 'multi_select')",
+            "rangeMin": "number | null",
+            "rangeMax": "number | null",
+            "rangeStep": "number | null",
+            "rangeUnit": "string | null"
+          },
+          "valueId": "number | null",
+          "valueBool": "boolean | null",
+          "valueText": "string | null",
+          "valueFloat": "number | null",
+          "value": {
+            "id": "number | null",
+            "value": "string | null"
+          } | null,
+          "multiValues": [
+            {
+              "id": "number",
+              "value": {
+                "id": "number",
+                "value": "string"
+              }
+            }
+          ]
+        }
+      ],
+      "_count": {
+        "favorites": "number — total count of users who have favorited this listing"
       }
-    ]
-  }
-]
+    }
+  ],
+  "total": "number — total count of user's listings"
+}
 ```
 
-Includes seller details. Results are unordered (returned as-is from database).
+Includes seller details and favorite counts. Results are unordered (returned as-is from database).
 
 ### Errors
 
@@ -532,7 +565,7 @@ curl -X GET http://localhost:3000/api/listings/my-listings \
 
 ## `GET /api/listings/:id`
 
-Get details of a specific listing by ID.
+Get details of a specific listing by ID, including favorite information and all attributes.
 
 **Authentication:** Bearer token
 
@@ -573,22 +606,57 @@ Path parameters:
     "createdAt": "ISO 8601 datetime",
     "isArbiter": "boolean"
   },
+  "chats": [
+    {
+      "id": "number — chat ID",
+      "listingId": "number",
+      "buyerPubkey": "string",
+      "arbiterPubkey": "string | null",
+      "signature": "string",
+      "status": "string",
+      "createdAt": "ISO 8601 datetime",
+      "escrow": {
+        "status": "string"
+      } | null
+    }
+  ],
   "attributes": [
     {
+      "id": "number — listing attribute record ID",
       "attributeId": "number",
       "attribute": {
         "id": "number",
         "name": "string",
         "slug": "string",
-        "type": "enum ('select' | 'boolean')"
+        "type": "enum ('select' | 'boolean' | 'text' | 'range' | 'date' | 'multi_select')",
+        "rangeMin": "number | null",
+        "rangeMax": "number | null",
+        "rangeStep": "number | null",
+        "rangeUnit": "string | null"
       },
+      "valueId": "number | null",
+      "valueBool": "boolean | null",
+      "valueText": "string | null",
+      "valueFloat": "number | null",
       "value": {
         "id": "number | null",
         "value": "string | null"
       } | null,
-      "valueBool": "boolean | null"
+      "multiValues": [
+        {
+          "id": "number",
+          "value": {
+            "id": "number",
+            "value": "string"
+          }
+        }
+      ]
     }
-  ]
+  ],
+  "_count": {
+    "favorites": "number — total count of users who have favorited this listing"
+  },
+  "isFavorited": "boolean — whether the authenticated user has favorited this listing"
 }
 ```
 

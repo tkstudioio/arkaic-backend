@@ -44,12 +44,12 @@ Read-only endpoints for browsing attributes and building dynamic category filter
 
 ### categories.ts — Category tree
 
-Read-only endpoints for browsing the hierarchical category tree. All endpoints require `bearerAuth`.
+Read-only endpoints for browsing the hierarchical category tree. All endpoints require `bearerAuth`. Root categories include `iconName` (e.g., "shirt", "shopping-bag") and `color` (hex code) fields for UI styling. See `.claude/docs/categories.md` for details on icons and colors.
 
 | Metodo | Path      | Auth       | Scopo                                                         |
 | ------ | --------- | ---------- | ------------------------------------------------------------- |
-| GET    | `/`       | bearerAuth | List root categories with children (childrenOf is null)       |
-| GET    | `/:slug`  | bearerAuth | Category detail with children and categoryAttributes (with attribute values) |
+| GET    | `/`       | bearerAuth | List root categories with children (childrenOf is null), includes iconName and color |
+| GET    | `/:slug`  | bearerAuth | Category detail with children and categoryAttributes (with attribute values), includes iconName and color |
 
 ---
 
@@ -59,11 +59,24 @@ Gestione chat buyer-seller per listing specifici.
 
 | Metodo | Path                 | Auth                         | Scopo                          |
 | ------ | -------------------- | ---------------------------- | ------------------------------ |
+| GET    | `/`                  | bearerAuth                   | All chats for authenticated user (buyer or seller), ordered by most recent message, paginated |
 | GET    | `/seller/:listingId` | bearerAuth                   | Chat del seller per un listing |
 | GET    | `/:chatId/escrow`    | bearerAuth                   | Escrow associato alla chat     |
 | GET    | `/:chatId/offer`     | bearerAuth                   | Ultima offerta attiva per chat |
 | GET    | `/:chatId`           | bearerAuth                   | Dettaglio chat completo        |
 | POST   | `/:listingId`        | bearerAuth + verifySignature | Crea chat (idempotente)        |
+
+---
+
+### favorites.ts — User listing bookmarks
+
+Favorite/bookmark management for listings. All endpoints require `bearerAuth`. No `verifySignature` needed (no Schnorr-signed bodies).
+
+| Metodo | Path           | Auth       | Scopo                                          |
+| ------ | -------------- | ---------- | ---------------------------------------------- |
+| GET    | `/`            | bearerAuth | List favorited listings, paginated with total   |
+| POST   | `/:listingId`  | bearerAuth | Add favorite (idempotent upsert, returns 201)   |
+| DELETE | `/:listingId`  | bearerAuth | Remove favorite (idempotent, no error if absent)|
 
 ---
 
@@ -143,6 +156,12 @@ Singleton `PrismaClient` con adapter `better-sqlite3`. Importa da `@/lib/prisma`
 | `AuthEnv`         | Type       | Tipo Hono env con `pubkey` e `signature` nelle variables      |
 | `bearerAuth`      | Middleware | Verifica JWT Bearer, imposta `c.set("pubkey")`                |
 | `verifySignature` | Middleware | Verifica firma Schnorr sul body, imposta `c.set("signature")` |
+
+### category.ts — Category ancestry helper
+
+| Export                 | Tipo     | Scopo                                                                       |
+| ---------------------- | -------- | --------------------------------------------------------------------------- |
+| `collectAncestorIds`   | Function | Returns the given categoryId plus all ancestor IDs up to the root. Accepts both `PrismaClient` and transaction client, ensuring transactional isolation when populating `ListingCategory` ancestry during create/update operations. |
 
 ### system-messages.ts — System message helper
 

@@ -28,6 +28,7 @@ src/
 │   ├── ark.ts                 # Ark SDK providers (RestArkProvider, RestIndexerProvider, EsploraProvider)
 │   ├── escrow.ts              # Escrow helpers (toXOnly, buildEscrowContext, buildEscrowTransaction)
 │   ├── auth.ts                # Auth middleware (bearerAuth JWT, verifySignature Schnorr)
+│   ├── category.ts            # Category ancestry helper (collectAncestorIds)
 │   └── system-messages.ts     # System message helper (createSystemMessage for lifecycle events)
 ├── routes/
 │   ├── api/
@@ -37,6 +38,7 @@ src/
 │   │   ├── attributes.ts      # Attribute browsing, category-scoped attributes, dynamic filters
 │   │   ├── categories.ts      # Category tree browsing (root categories, children by slug)
 │   │   ├── chats.ts           # Conversazioni buyer-seller per listing
+│   │   ├── favorites.ts       # User listing bookmarks (add, remove, list)
 │   │   ├── messages.ts        # Messaggi, offerte, accettazione offerte
 │   │   └── escrows.ts         # Creazione escrow, flusso collaborativo, flusso refund
 │   └── ws.ts                  # WebSocket: connessioni per pubkey, notifiche real-time
@@ -55,6 +57,7 @@ src/
 | `/api/categories`| `categories.ts` | Browsing albero categorie gerarchiche            |
 | `/api/attributes`| `attributes.ts` | Attribute browsing, category-scoped, dynamic filters |
 | `/api/chats`     | `chats.ts`    | Gestione chat buyer-seller                       |
+| `/api/favorites` | `favorites.ts`| User listing bookmarks (add, remove, list)       |
 | `/api/messages`  | `messages.ts` | Messaggi, offerte, risposta offerte              |
 | `/api/escrows`   | `escrows.ts`  | Escrow lifecycle (create, collab, refund)        |
 | `/ws`            | `ws.ts`       | WebSocket per notifiche push                     |
@@ -70,7 +73,7 @@ src/
 | **Account**         | Utente con pubkey, username, flag arbiter       | `pubkey`             |
 | **Listing**         | Prodotto in vendita (nome, prezzo, seller, categoria) | `id` (autoincrement) |
 | **Category**        | Categorie gerarchiche con slug unico            | `id`                 |
-| **ListingCategory** | Join table legacy per multi-categoria (riserva) | `(listingId, categoryId)` |
+| **ListingCategory** | Denormalized ancestry index: stores the listing's direct categoryId plus all ancestor category IDs, enabling efficient subtree filtering | `(listingId, categoryId)` |
 | **Chat**            | Conversazione buyer-seller per un listing       | `id`                 |
 | **Message**         | Messaggio testuale o di sistema in una chat     | `id`                 |
 | **Offer**           | Proposta di prezzo da buyer dentro un messaggio | `id`                 |
@@ -83,6 +86,7 @@ src/
 | **CategoryAttribute** | Links an attribute to a category (with required/filterable flags) | `id` |
 | **ListingAttribute** | Assigns an attribute value to a listing; valueFloat stores numeric value for range type filtering | `id` (unique on listingId+attributeId) |
 | **ListingAttributeValue** | Join table for multi_select attribute values on a listing (one ListingAttribute → many AttributeValue rows) | `id` |
+| **Favorite**        | User bookmark on a listing (unique per account+listing, cascade delete on listing removal) | `id` |
 
 ### Relazioni chiave
 
@@ -100,6 +104,8 @@ src/
 - Chat → Escrow (one-to-one)
 - Message → Offer (one-to-one, opzionale)
 - Offer → OfferAcceptance (one-to-many)
+- Account → Favorite (one-to-many)
+- Listing → Favorite (one-to-many, cascade delete)
 - Escrow → Account (buyer, seller, arbiter)
 
 ---
