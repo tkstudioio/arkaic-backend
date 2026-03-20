@@ -6,6 +6,49 @@ export const chats = new Hono<AuthEnv>();
 
 chats.use(bearerAuth);
 
+// Get all chats for the authenticated user (buyer or seller), ordered by most recent message
+chats.get("/", async (c) => {
+  const pubkey = c.get("pubkey");
+  const take = Math.min(Number(c.req.query("limit")) || 20, 100);
+  const skip = Number(c.req.query("offset")) || 0;
+
+  const where = {
+    OR: [
+      { buyerPubkey: pubkey },
+      { listing: { sellerPubkey: pubkey } },
+    ],
+  };
+
+  const [allChats, total] = await Promise.all([
+    prisma.chat.findMany({
+      where,
+      include: {
+        listing: {
+          include: { seller: true, category: true },
+        },
+        buyer: true,
+        escrow: { select: { status: true } },
+        messages: {
+          orderBy: { sentAt: "desc" },
+          take: 1,
+          include: { offer: true },
+        },
+      },
+    }),
+    prisma.chat.count({ where }),
+  ]);
+
+  allChats.sort((a, b) => {
+    const aDate = a.messages[0]?.sentAt ?? new Date(0);
+    const bDate = b.messages[0]?.sentAt ?? new Date(0);
+    return bDate.getTime() - aDate.getTime();
+  });
+
+  const chatsPage = allChats.slice(skip, skip + take);
+
+  return c.json({ chats: chatsPage, total });
+});
+
 // Get all seller's chat of a specific listing
 chats.get("/seller/:listingId", async (c) => {
   const pubkey = c.get("pubkey");

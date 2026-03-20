@@ -1,6 +1,7 @@
 import { arkProvider } from "@/lib/ark";
 import { type AuthEnv, bearerAuth, verifySignature } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { collectAncestorIds } from "@/lib/category";
 import { Prisma } from "@/generated/prisma/client";
 import { sValidator } from "@hono/standard-validator";
 import { Hono } from "hono";
@@ -223,6 +224,7 @@ const listingInclude = {
       },
     },
   },
+  _count: { select: { favorites: true } },
 } as const;
 
 listings.post(
@@ -269,6 +271,13 @@ listings.post(
       const listing = await tx.listing.create({
         data: { name, price, description, sellerPubkey, signature, categoryId },
       });
+
+      if (categoryId !== undefined) {
+        const ancestorIds = await collectAncestorIds(tx, categoryId);
+        await tx.listingCategory.createMany({
+          data: ancestorIds.map((cid) => ({ listingId: listing.id, categoryId: cid })),
+        });
+      }
 
       if (attributes && attributes.length > 0) {
         await tx.listingAttribute.createMany({
@@ -397,6 +406,16 @@ listings.patch(
         data: updateData,
       });
 
+      if (categoryId !== undefined) {
+        await tx.listingCategory.deleteMany({ where: { listingId: id } });
+        if (categoryId !== null) {
+          const ancestorIds = await collectAncestorIds(tx, categoryId);
+          await tx.listingCategory.createMany({
+            data: ancestorIds.map((cid) => ({ listingId: id, categoryId: cid })),
+          });
+        }
+      }
+
       if (attributes && attributes.length > 0) {
         await tx.listingAttribute.createMany({
           data: attributes.map((attr) => ({
@@ -468,7 +487,6 @@ listings.get("/", async (c) => {
   }
 
   const search = c.req.query("search")?.trim() || undefined;
-  const includeChildren = c.req.query("includeChildren") === "true";
   const sortParam = c.req.query("sort") || "newest";
 
   const allowedSortValues = ["price_asc", "price_desc", "newest", "oldest"] as const;
@@ -508,17 +526,12 @@ listings.get("/", async (c) => {
 
   let categoryIds: number[] | undefined;
   if (categoryId !== undefined) {
-    if (includeChildren) {
-      const childCategories = await prisma.category.findMany({
-        where: { childrenOf: categoryId },
-        select: { id: true },
-      });
-      categoryIds = [categoryId, ...childCategories.map((cat) => cat.id)];
-      where.categoryId = { in: categoryIds };
-    } else {
-      categoryIds = [categoryId];
-      where.categoryId = categoryId;
-    }
+    // Filter via the denormalized ListingCategory ancestry index.
+    // The join table already contains all ancestor IDs for each listing,
+    // so a single categoryId match is sufficient for full subtree coverage.
+    where.categories = { some: { categoryId } };
+    // categoryIds is still needed for attribute filter validation below
+    categoryIds = [categoryId];
   }
 
   if (minPrice !== undefined || maxPrice !== undefined) {
@@ -615,7 +628,21 @@ listings.get("/", async (c) => {
     prisma.listing.count({ where }),
   ]);
 
-  return c.json({ listings: allListings, total });
+  const favoritedListingIds = new Set(
+    (
+      await prisma.favorite.findMany({
+        where: { accountPubkey: pubkey, listingId: { in: allListings.map((l) => l.id) } },
+        select: { listingId: true },
+      })
+    ).map((f) => f.listingId),
+  );
+
+  const listingsWithFav = allListings.map((l) => ({
+    ...l,
+    isFavorited: favoritedListingIds.has(l.id),
+  }));
+
+  return c.json({ listings: listingsWithFav, total });
 });
 
 listings.get("/my-listings", async (c) => {
@@ -630,6 +657,7 @@ listings.get("/my-listings", async (c) => {
 });
 
 listings.get("/:id", async (c) => {
+  const pubkey = c.get("pubkey");
   const id = Number(c.req.param("id"));
   if (isNaN(id)) return c.text("Invalid id", 400);
 
@@ -648,10 +676,15 @@ listings.get("/:id", async (c) => {
           },
         },
       },
+      _count: { select: { favorites: true } },
     },
   });
 
   if (!listing) return c.text("Listing not found", 404);
 
-  return c.json(listing);
+  const fav = await prisma.favorite.findUnique({
+    where: { accountPubkey_listingId: { accountPubkey: pubkey, listingId: id } },
+  });
+
+  return c.json({ ...listing, isFavorited: !!fav });
 });

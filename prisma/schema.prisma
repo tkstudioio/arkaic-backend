@@ -25,6 +25,7 @@ model Account {
   arbiterEscrows  Escrow[]  @relation("EscrowArbiter")
   reviewsReceived Review[]  @relation("ReviewReceived")
   reviewsGiven    Review[]  @relation("ReviewGiven")
+  favorites       Favorite[]
 }
 
 model Challenge {
@@ -61,10 +62,11 @@ model Listing {
   categoryId   Int?
   category     Category? @relation("ListingDirectCategory", fields: [categoryId], references: [id])
 
-  // categories (ListingCategory) is a legacy/multi-category join table, reserved for future use
+  // categories (ListingCategory) is a denormalized ancestry index: stores the listing's direct categoryId plus all ancestor category IDs, enabling efficient subtree filtering
   categories ListingCategory[]
   chats      Chat[]
   attributes ListingAttribute[]
+  favorites  Favorite[]
 
   @@index([categoryId])
   @@index([price])
@@ -73,11 +75,12 @@ model Listing {
 
 model ListingCategory {
   listingId  Int
-  listing    Listing  @relation(fields: [listingId], references: [id])
+  listing    Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
   categoryId Int
   category   Category @relation(fields: [categoryId], references: [id])
 
   @@id([listingId, categoryId])
+  @@index([categoryId])
 }
 
 enum ChatStatus {
@@ -152,6 +155,8 @@ model Category {
   id         Int        @id @default(autoincrement())
   name       String
   slug       String     @unique
+  iconName   String?
+  color      String?
   childrenOf Int?
   parent     Category?  @relation("CategoryTree", fields: [childrenOf], references: [id])
   children   Category[] @relation("CategoryTree")
@@ -269,4 +274,17 @@ model Escrow {
   releasedAt              DateTime?
 
   reviews Review[]
+}
+
+model Favorite {
+  id            Int      @id @default(autoincrement())
+  accountPubkey String
+  account       Account  @relation(fields: [accountPubkey], references: [pubkey])
+  listingId     Int
+  listing       Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+
+  @@unique([accountPubkey, listingId])
+  @@index([accountPubkey])
+  @@index([listingId])
 }

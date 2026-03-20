@@ -7,10 +7,12 @@ import { listings } from "@/routes/api/listings";
 import { chats } from "@/routes/api/chats";
 import { messages } from "@/routes/api/messages";
 import { escrows } from "@/routes/api/escrows";
+import { favorites } from "@/routes/api/favorites";
 
 export const api = new Hono();
 api.route("/chats", chats);
 api.route("/messages", messages);
+api.route("/favorites", favorites);
 api.route("/listings", listings);
 api.route("/escrows", escrows);
 api.route("/auth", auth);
