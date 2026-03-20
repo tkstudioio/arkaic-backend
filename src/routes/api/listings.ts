@@ -25,12 +25,16 @@ async function validateAttributes(
   const seenIds = new Set<number>();
   for (const input of attributeInputs) {
     if (seenIds.has(input.attributeId)) {
-      return { error: `Duplicate attributeId ${input.attributeId} in attributes array` };
+      return {
+        error: `Duplicate attributeId ${input.attributeId} in attributes array`,
+      };
     }
     seenIds.add(input.attributeId);
   }
 
-  const category = await prisma.category.findUnique({ where: { id: categoryId } });
+  const category = await prisma.category.findUnique({
+    where: { id: categoryId },
+  });
   if (!category) return { error: "Category not found" };
 
   const categoryAttrs = await prisma.categoryAttribute.findMany({
@@ -39,84 +43,156 @@ async function validateAttributes(
   });
 
   for (const input of attributeInputs) {
-    const attr = await prisma.attribute.findUnique({ where: { id: input.attributeId } });
+    const attr = await prisma.attribute.findUnique({
+      where: { id: input.attributeId },
+    });
     if (!attr) return { error: `Attribute ${input.attributeId} not found` };
 
-    const catAttr = categoryAttrs.find((ca) => ca.attributeId === input.attributeId);
+    const catAttr = categoryAttrs.find(
+      (ca) => ca.attributeId === input.attributeId,
+    );
     if (!catAttr) {
-      return { error: `Attribute '${attr.slug}' is not valid for category '${category.name}'` };
+      return {
+        error: `Attribute '${attr.slug}' is not valid for category '${category.name}'`,
+      };
     }
 
     if (attr.type === "select") {
       if (input.valueId === undefined) {
-        return { error: `Attribute '${attr.slug}' is a select type and requires a valueId` };
+        return {
+          error: `Attribute '${attr.slug}' is a select type and requires a valueId`,
+        };
       }
       if (input.valueBool !== undefined || input.valueIds !== undefined) {
-        return { error: `Attribute '${attr.slug}' is a select type and must not have valueBool or valueIds` };
+        return {
+          error: `Attribute '${attr.slug}' is a select type and must not have valueBool or valueIds`,
+        };
       }
-      const attrValue = await prisma.attributeValue.findUnique({ where: { id: input.valueId } });
+      const attrValue = await prisma.attributeValue.findUnique({
+        where: { id: input.valueId },
+      });
       if (!attrValue || attrValue.attributeId !== attr.id) {
-        return { error: `valueId ${input.valueId} is not a valid value for attribute '${attr.slug}'` };
+        return {
+          error: `valueId ${input.valueId} is not a valid value for attribute '${attr.slug}'`,
+        };
       }
     } else if (attr.type === "boolean") {
       if (input.valueBool === undefined) {
-        return { error: `Attribute '${attr.slug}' is a boolean type and requires valueBool` };
+        return {
+          error: `Attribute '${attr.slug}' is a boolean type and requires valueBool`,
+        };
       }
       if (input.valueId !== undefined || input.valueIds !== undefined) {
-        return { error: `Attribute '${attr.slug}' is a boolean type and must not have valueId or valueIds` };
+        return {
+          error: `Attribute '${attr.slug}' is a boolean type and must not have valueId or valueIds`,
+        };
       }
     } else if (attr.type === "text") {
       if (input.valueText === undefined || input.valueText.trim() === "") {
-        return { error: `Attribute '${attr.slug}' is a text type and requires valueText` };
+        return {
+          error: `Attribute '${attr.slug}' is a text type and requires valueText`,
+        };
       }
-      if (input.valueId !== undefined || input.valueBool !== undefined || input.valueIds !== undefined) {
-        return { error: `Attribute '${attr.slug}' is a text type and must not have valueId, valueBool, or valueIds` };
+      if (
+        input.valueId !== undefined ||
+        input.valueBool !== undefined ||
+        input.valueIds !== undefined
+      ) {
+        return {
+          error: `Attribute '${attr.slug}' is a text type and must not have valueId, valueBool, or valueIds`,
+        };
       }
     } else if (attr.type === "range") {
       if (input.valueText === undefined || input.valueText.trim() === "") {
-        return { error: `Attribute '${attr.slug}' is a range type and requires valueText` };
+        return {
+          error: `Attribute '${attr.slug}' is a range type and requires valueText`,
+        };
       }
       const numericValue = Number(input.valueText);
       if (isNaN(numericValue)) {
-        return { error: `Attribute '${attr.slug}' requires a numeric valueText` };
+        return {
+          error: `Attribute '${attr.slug}' requires a numeric valueText`,
+        };
       }
-      if (attr.rangeMin !== null && attr.rangeMin !== undefined && numericValue < attr.rangeMin) {
-        return { error: `Attribute '${attr.slug}' value must be >= ${attr.rangeMin}` };
+      if (
+        attr.rangeMin !== null &&
+        attr.rangeMin !== undefined &&
+        numericValue < attr.rangeMin
+      ) {
+        return {
+          error: `Attribute '${attr.slug}' value must be >= ${attr.rangeMin}`,
+        };
       }
-      if (attr.rangeMax !== null && attr.rangeMax !== undefined && numericValue > attr.rangeMax) {
-        return { error: `Attribute '${attr.slug}' value must be <= ${attr.rangeMax}` };
+      if (
+        attr.rangeMax !== null &&
+        attr.rangeMax !== undefined &&
+        numericValue > attr.rangeMax
+      ) {
+        return {
+          error: `Attribute '${attr.slug}' value must be <= ${attr.rangeMax}`,
+        };
       }
-      if (input.valueId !== undefined || input.valueBool !== undefined || input.valueIds !== undefined) {
-        return { error: `Attribute '${attr.slug}' is a range type and must only have valueText` };
+      if (
+        input.valueId !== undefined ||
+        input.valueBool !== undefined ||
+        input.valueIds !== undefined
+      ) {
+        return {
+          error: `Attribute '${attr.slug}' is a range type and must only have valueText`,
+        };
       }
     } else if (attr.type === "date") {
       if (input.valueText === undefined || input.valueText.trim() === "") {
-        return { error: `Attribute '${attr.slug}' is a date type and requires valueText` };
+        return {
+          error: `Attribute '${attr.slug}' is a date type and requires valueText`,
+        };
       }
       if (!/^\d{4}-\d{2}-\d{2}$/.test(input.valueText)) {
-        return { error: `Attribute '${attr.slug}' requires an ISO date (YYYY-MM-DD) in valueText` };
+        return {
+          error: `Attribute '${attr.slug}' requires an ISO date (YYYY-MM-DD) in valueText`,
+        };
       }
       const parsed = new Date(input.valueText);
       if (isNaN(parsed.getTime())) {
-        return { error: `Attribute '${attr.slug}' has an invalid date in valueText` };
+        return {
+          error: `Attribute '${attr.slug}' has an invalid date in valueText`,
+        };
       }
-      if (input.valueId !== undefined || input.valueBool !== undefined || input.valueIds !== undefined) {
-        return { error: `Attribute '${attr.slug}' is a date type and must only have valueText` };
+      if (
+        input.valueId !== undefined ||
+        input.valueBool !== undefined ||
+        input.valueIds !== undefined
+      ) {
+        return {
+          error: `Attribute '${attr.slug}' is a date type and must only have valueText`,
+        };
       }
     } else if (attr.type === "multi_select") {
       if (!input.valueIds || input.valueIds.length === 0) {
-        return { error: `Attribute '${attr.slug}' is a multi_select type and requires valueIds` };
+        return {
+          error: `Attribute '${attr.slug}' is a multi_select type and requires valueIds`,
+        };
       }
-      if (input.valueId !== undefined || input.valueBool !== undefined || input.valueText !== undefined) {
-        return { error: `Attribute '${attr.slug}' is a multi_select type and must only have valueIds` };
+      if (
+        input.valueId !== undefined ||
+        input.valueBool !== undefined ||
+        input.valueText !== undefined
+      ) {
+        return {
+          error: `Attribute '${attr.slug}' is a multi_select type and must only have valueIds`,
+        };
       }
       if (new Set(input.valueIds).size !== input.valueIds.length) {
         return { error: `Attribute '${attr.slug}' has duplicate valueIds` };
       }
       for (const vid of input.valueIds) {
-        const attrValue = await prisma.attributeValue.findUnique({ where: { id: vid } });
+        const attrValue = await prisma.attributeValue.findUnique({
+          where: { id: vid },
+        });
         if (!attrValue || attrValue.attributeId !== attr.id) {
-          return { error: `valueId ${vid} is not a valid value for attribute '${attr.slug}'` };
+          return {
+            error: `valueId ${vid} is not a valid value for attribute '${attr.slug}'`,
+          };
         }
       }
     }
@@ -124,7 +200,9 @@ async function validateAttributes(
 
   const requiredAttrs = categoryAttrs.filter((ca) => ca.required);
   for (const req of requiredAttrs) {
-    const provided = attributeInputs.find((a) => a.attributeId === req.attributeId);
+    const provided = attributeInputs.find(
+      (a) => a.attributeId === req.attributeId,
+    );
     if (!provided) {
       return { error: `Required attribute '${req.attribute.name}' is missing` };
     }
