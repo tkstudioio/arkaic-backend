@@ -681,7 +681,7 @@ listings.get("/:id", async (c) => {
     include: {
       seller: true,
       category: { include: { parent: true } },
-      chats: { include: { escrow: { select: { status: true } } } },
+      chats: { include: { escrow: { select: { status: true, buyerPubkey: true } } } },
       attributes: {
         include: {
           attribute: true,
@@ -696,6 +696,22 @@ listings.get("/:id", async (c) => {
   });
 
   if (!listing) return c.text("Listing not found", 404);
+
+  const activeEscrow = listing.chats
+    .map((chat) => chat.escrow)
+    .find(
+      (esc) =>
+        esc !== null &&
+        !["completed", "refunded"].includes(esc.status),
+    );
+
+  if (activeEscrow) {
+    const isSeller = listing.sellerPubkey === pubkey;
+    const isBuyer = activeEscrow.buyerPubkey === pubkey;
+    if (!isSeller && !isBuyer) {
+      return c.text("Listing not found", 404);
+    }
+  }
 
   const fav = await prisma.favorite.findUnique({
     where: { accountPubkey_listingId: { accountPubkey: pubkey, listingId: id } },
