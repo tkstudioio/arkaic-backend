@@ -22,7 +22,7 @@ Backend API Hono per un marketplace Bitcoin escrow costruito sul protocollo Ark 
 
 ```
 src/
-├── index.ts                     # Entry point: Hono app, CORS, route mounting, server
+├── index.ts                     # Entry point: Hono app, CORS, static file serving, route mounting, server
 ├── lib/
 │   ├── prisma.ts              # Prisma client singleton (SQLite, better-sqlite3)
 │   ├── ark.ts                 # Ark SDK providers (RestArkProvider, RestIndexerProvider, EsploraProvider)
@@ -39,6 +39,7 @@ src/
 │   │   ├── categories.ts      # Category tree browsing (root categories, children by slug)
 │   │   ├── chats.ts           # Conversazioni buyer-seller per listing
 │   │   ├── favorites.ts       # User listing bookmarks (add, remove, list)
+│   │   ├── photos.ts          # Listing photo upload, delete, reorder
 │   │   ├── messages.ts        # Messaggi, offerte, accettazione offerte
 │   │   └── escrows.ts         # Creazione escrow, flusso collaborativo, flusso refund
 │   └── ws.ts                  # WebSocket: connessioni per pubkey, notifiche real-time
@@ -58,6 +59,7 @@ src/
 | `/api/attributes`| `attributes.ts` | Attribute browsing, category-scoped, dynamic filters |
 | `/api/chats`     | `chats.ts`    | Gestione chat buyer-seller                       |
 | `/api/favorites` | `favorites.ts`| User listing bookmarks (add, remove, list)       |
+| `/api/listings`  | `photos.ts`   | Listing photo management (upload, delete, reorder) |
 | `/api/messages`  | `messages.ts` | Messaggi, offerte, risposta offerte              |
 | `/api/escrows`   | `escrows.ts`  | Escrow lifecycle (create, collab, refund)        |
 | `/ws`            | `ws.ts`       | WebSocket per notifiche push                     |
@@ -86,6 +88,7 @@ src/
 | **CategoryAttribute** | Links an attribute to a category (with required/filterable flags) | `id` |
 | **ListingAttribute** | Assigns an attribute value to a listing; valueFloat stores numeric value for range type filtering | `id` (unique on listingId+attributeId) |
 | **ListingAttributeValue** | Join table for multi_select attribute values on a listing (one ListingAttribute → many AttributeValue rows) | `id` |
+| **ListingPhoto**    | Photo attached to a listing (filename, mimeType, size, position; cascade delete on listing removal; files stored on disk under `uploads/listings/<listingId>/`) | `id` |
 | **Favorite**        | User bookmark on a listing (unique per account+listing, cascade delete on listing removal) | `id` |
 
 ### Relazioni chiave
@@ -105,6 +108,7 @@ src/
 - Message → Offer (one-to-one, opzionale)
 - Offer → OfferAcceptance (one-to-many)
 - Account → Favorite (one-to-many)
+- Listing → ListingPhoto (one-to-many, cascade delete)
 - Listing → Favorite (one-to-many, cascade delete)
 - Escrow → Account (buyer, seller, arbiter)
 

@@ -24,9 +24,10 @@ CRUD per i listing del marketplace. Tutti gli endpoint (tranne GET) richiedono a
 | ------ | -------------- | ---------------------------- | ----------------------------------------------------- |
 | POST   | `/`            | bearerAuth + verifySignature | Crea listing (valida price > dust fee, opt. categoryId + attributes including multi_select valueIds), returns 201 |
 | PATCH  | `/:id`         | bearerAuth + verifySignature | Update listing fields, category, and/or attributes (atomic; cascade delete handles multi_select cleanup) |
-| GET    | `/`            | bearerAuth                   | Lista listing paginati con filtro categoria e attributi (`attr_<id>=valueId` for select/multi_select, `attr_<id>=true/false` for boolean, `attr_<id>=min,max` for range) |
-| GET    | `/my-listings` | bearerAuth                   | Lista listing dell'utente autenticato (include category + attributes + multiValues) |
-| GET    | `/:id`         | bearerAuth                   | Dettaglio listing con seller, category (with parent), attributes, and multiValues |
+| GET    | `/`            | bearerAuth                   | Lista listing paginati con filtro categoria e attributi (`attr_<id>=valueId` for select/multi_select, `attr_<id>=true/false` for boolean, `attr_<id>=min,max` for range). Excludes listings with active escrows from other buyers. Includes photos |
+| GET    | `/my-listings` | bearerAuth                   | Lista listing dell'utente autenticato (include category + attributes + multiValues + photos) |
+| GET    | `/my-purchases`| bearerAuth                   | Listings purchased by the authenticated user (completed escrows only) |
+| GET    | `/:id`         | bearerAuth                   | Dettaglio listing con seller, category (with parent), attributes, multiValues, and photos. Listings with active escrows are only visible to the buyer and seller involved |
 
 ---
 
@@ -50,6 +51,18 @@ Read-only endpoints for browsing the hierarchical category tree. All endpoints r
 | ------ | --------- | ---------- | ------------------------------------------------------------- |
 | GET    | `/`       | bearerAuth | List root categories with children (childrenOf is null), includes iconName and color |
 | GET    | `/:slug`  | bearerAuth | Category detail with children and categoryAttributes (with attribute values), includes iconName and color |
+
+---
+
+### photos.ts — Listing photos
+
+Photo upload, deletion, and reorder for listings. All endpoints require `bearerAuth` only (no `verifySignature` -- multipart bodies cannot be Schnorr-signed). Ownership enforced via query-level checks (`sellerPubkey` match). Files stored on disk under `uploads/listings/<listingId>/` and served statically at `GET /uploads/*`.
+
+| Metodo | Path                    | Auth       | Scopo                                                    |
+| ------ | ----------------------- | ---------- | -------------------------------------------------------- |
+| POST   | `/:id/photos`           | bearerAuth | Upload photos (multipart, max 10 per listing, 4MB each, image/* only) |
+| DELETE | `/:id/photos/:photoId`  | bearerAuth | Delete a single photo (DB record + disk file)            |
+| PATCH  | `/:id/photos/order`     | bearerAuth | Reorder photos by updating position field                |
 
 ---
 
