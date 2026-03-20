@@ -215,6 +215,7 @@ async function validateAttributes(
 const listingInclude = {
   seller: true,
   category: true,
+  photos: { orderBy: { position: "asc" as const } },
   attributes: {
     include: {
       attribute: true,
@@ -710,6 +711,7 @@ listings.get("/:id", async (c) => {
     include: {
       seller: true,
       category: { include: { parent: true } },
+      photos: { orderBy: { position: "asc" } },
       chats: { include: { escrow: { select: { status: true, buyerPubkey: true } } } },
       attributes: {
         include: {
