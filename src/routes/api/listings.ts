@@ -638,6 +638,7 @@ listings.get("/:id", async (c) => {
     include: {
       seller: true,
       category: { include: { parent: true } },
+      chats: { include: { escrow: { select: { status: true } } } },
       attributes: {
         include: {
           attribute: true,
