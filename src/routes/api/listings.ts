@@ -671,6 +671,35 @@ listings.get("/my-listings", async (c) => {
   return c.json({ listings: myListings, total: myListings.length });
 });
 
+listings.get("/my-purchases", async (c) => {
+  const pubkey = c.get("pubkey");
+
+  const escrows = await prisma.escrow.findMany({
+    where: {
+      buyerPubkey: pubkey,
+      status: "completed",
+    },
+    select: {
+      chat: { select: { listingId: true } },
+    },
+  });
+
+  const listingIds = [
+    ...new Set(
+      escrows
+        .map((e) => e.chat?.listingId)
+        .filter((id): id is number => id !== null && id !== undefined),
+    ),
+  ];
+
+  const purchasedListings = await prisma.listing.findMany({
+    where: { id: { in: listingIds } },
+    include: listingInclude,
+  });
+
+  return c.json({ listings: purchasedListings, total: purchasedListings.length });
+});
+
 listings.get("/:id", async (c) => {
   const pubkey = c.get("pubkey");
   const id = Number(c.req.param("id"));
