@@ -1827,6 +1827,8 @@
     {
       "name": "Fashion",
       "slug": "fashion",
+      "iconName": "shirt",
+      "color": "#8B5CF6",
       "attributes": [
         {
           "slug": "condition",
@@ -9763,6 +9765,8 @@
     {
       "name": "Market",
       "slug": "market",
+      "iconName": "shopping-bag",
+      "color": "#F59E0B",
       "attributes": [
         {
           "slug": "condition",
@@ -20244,6 +20248,8 @@
     {
       "name": "Work & Services",
       "slug": "work",
+      "iconName": "briefcase",
+      "color": "#3B82F6",
       "children": [
         {
           "name": "Services Offered",

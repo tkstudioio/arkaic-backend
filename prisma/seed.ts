@@ -22,6 +22,8 @@ interface JsonAttributeRef {
 interface JsonCategory {
   name: string;
   slug: string;
+  iconName?: string;
+  color?: string;
   attributes?: JsonAttributeRef[];
   children?: JsonCategory[];
 }
@@ -46,11 +48,17 @@ interface MarketplaceData {
 // HELPERS
 // ========================
 
-async function upsertCategory(name: string, slug: string, parentId?: number) {
+async function upsertCategory(
+  name: string,
+  slug: string,
+  parentId?: number,
+  iconName?: string,
+  color?: string,
+) {
   return prisma.category.upsert({
     where: { slug },
-    update: { name, childrenOf: parentId ?? null },
-    create: { name, slug, childrenOf: parentId ?? null },
+    update: { name, childrenOf: parentId ?? null, iconName: iconName ?? null, color: color ?? null },
+    create: { name, slug, childrenOf: parentId ?? null, iconName: iconName ?? null, color: color ?? null },
   });
 }
 
@@ -115,7 +123,7 @@ async function seedCategories(
   parentId?: number,
 ) {
   for (const cat of categories) {
-    const created = await upsertCategory(cat.name, cat.slug, parentId);
+    const created = await upsertCategory(cat.name, cat.slug, parentId, cat.iconName, cat.color);
 
     if (cat.attributes) {
       for (const attrRef of cat.attributes) {

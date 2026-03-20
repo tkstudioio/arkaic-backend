@@ -14,9 +14,11 @@ categories.get("/", async (c) => {
       id: true,
       name: true,
       slug: true,
+      iconName: true,
+      color: true,
       childrenOf: true,
       children: {
-        select: { id: true, name: true, slug: true, childrenOf: true },
+        select: { id: true, name: true, slug: true, iconName: true, color: true, childrenOf: true },
         orderBy: { id: "asc" },
       },
       parent: true,
@@ -34,10 +36,12 @@ categories.get("/:slug", async (c) => {
       id: true,
       name: true,
       slug: true,
+      iconName: true,
+      color: true,
       parent: true,
       childrenOf: true,
       children: {
-        select: { id: true, name: true, slug: true, childrenOf: true },
+        select: { id: true, name: true, slug: true, iconName: true, color: true, childrenOf: true },
         orderBy: { id: "asc" },
       },
       categoryAttributes: {
