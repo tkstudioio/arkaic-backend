@@ -67,6 +67,7 @@ model Listing {
   chats      Chat[]
   attributes ListingAttribute[]
   favorites  Favorite[]
+  photos     ListingPhoto[]
 
   @@index([categoryId])
   @@index([price])
@@ -274,6 +275,19 @@ model Escrow {
   releasedAt              DateTime?
 
   reviews Review[]
+}
+
+model ListingPhoto {
+  id        Int      @id @default(autoincrement())
+  listingId Int
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  filename  String
+  mimeType  String
+  size      Int
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([listingId])
 }
 
 model Favorite {
