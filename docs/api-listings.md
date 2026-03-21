@@ -300,11 +300,12 @@ curl -X PATCH http://localhost:3000/api/listings/42 \
 
 ## `GET /api/listings`
 
-List all active listings (excluding listings created by the authenticated user). Returns paginated results. Listings can be filtered by category and by attribute values.
+List all active listings (excluding listings created by the authenticated user and listings with active escrows). Returns paginated results with photos included. Listings can be filtered by category and by attribute values.
 
 **Authentication:** Bearer token
 **Pagination:** limit (default 20, max 100) and offset (default 0)
 **Filtering:** optional categoryId query parameter and attribute filters
+**Exclusions:** Listings with active escrows are automatically filtered out
 
 ### Request
 
@@ -379,6 +380,16 @@ GET /api/listings?limit=20&offset=0&categoryId=2&attr_1=20&attr_3=11
               }
             }
           ]
+        }
+      ],
+      "photos": [
+        {
+          "id": "number — unique photo ID",
+          "filename": "string — filename with extension",
+          "mimeType": "string — MIME type (e.g., 'image/jpeg')",
+          "size": "number — file size in bytes",
+          "position": "number — sort position (0-indexed)",
+          "createdAt": "ISO 8601 datetime — when photo was uploaded"
         }
       ],
       "_count": {
@@ -462,6 +473,115 @@ curl -X GET "http://localhost:3000/api/listings?categoryId=1&includeChildren=tru
 
 ---
 
+## `GET /api/listings/my-purchases`
+
+List all listings where the authenticated user was the buyer and the transaction is completed.
+
+**Authentication:** Bearer token
+
+### Request
+
+```
+GET /api/listings/my-purchases
+```
+
+No query parameters.
+
+### Response (200)
+
+```json
+{
+  "listings": [
+    {
+      "id": "number — listing ID",
+      "name": "string — listing name",
+      "price": "number — price in satoshi",
+      "description": "string | null — listing description",
+      "sellerPubkey": "string — hex-encoded seller pubkey",
+      "signature": "string — creator signature",
+      "createdAt": "ISO 8601 datetime",
+      "categoryId": "number | null — category ID (null if not assigned)",
+      "category": {
+        "id": "number — category ID",
+        "name": "string — category name",
+        "slug": "string — category slug",
+        "childrenOf": "number | null — parent category ID"
+      } | null,
+      "seller": {
+        "pubkey": "string — seller's public key",
+        "username": "string — seller's username",
+        "createdAt": "ISO 8601 datetime",
+        "isArbiter": "boolean"
+      },
+      "photos": [
+        {
+          "id": "number — unique photo ID",
+          "filename": "string — filename with extension",
+          "mimeType": "string — MIME type (e.g., 'image/jpeg')",
+          "size": "number — file size in bytes",
+          "position": "number — sort position (0-indexed)",
+          "createdAt": "ISO 8601 datetime — when photo was uploaded"
+        }
+      ],
+      "attributes": [
+        {
+          "id": "number — listing attribute record ID",
+          "attributeId": "number",
+          "attribute": {
+            "id": "number",
+            "name": "string",
+            "slug": "string",
+            "type": "enum ('select' | 'boolean' | 'text' | 'range' | 'date' | 'multi_select')",
+            "rangeMin": "number | null",
+            "rangeMax": "number | null",
+            "rangeStep": "number | null",
+            "rangeUnit": "string | null"
+          },
+          "valueId": "number | null",
+          "valueBool": "boolean | null",
+          "valueText": "string | null",
+          "valueFloat": "number | null",
+          "value": {
+            "id": "number | null",
+            "value": "string | null"
+          } | null,
+          "multiValues": [
+            {
+              "id": "number",
+              "value": {
+                "id": "number",
+                "value": "string"
+              }
+            }
+          ]
+        }
+      ],
+      "_count": {
+        "favorites": "number — total count of users who have favorited this listing"
+      }
+    }
+  ],
+  "total": "number — total count of purchased listings"
+}
+```
+
+### Errors
+
+| Status | Description |
+| ------ | ----------- |
+| 401    | Missing or invalid Bearer token |
+
+### Example curl
+
+```bash
+TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+curl -X GET http://localhost:3000/api/listings/my-purchases \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
 ## `GET /api/listings/my-listings`
 
 List all active listings created by the authenticated user.
@@ -502,6 +622,16 @@ No query parameters.
         "createdAt": "ISO 8601 datetime",
         "isArbiter": "boolean"
       },
+      "photos": [
+        {
+          "id": "number — unique photo ID",
+          "filename": "string — filename with extension",
+          "mimeType": "string — MIME type (e.g., 'image/jpeg')",
+          "size": "number — file size in bytes",
+          "position": "number — sort position (0-indexed)",
+          "createdAt": "ISO 8601 datetime — when photo was uploaded"
+        }
+      ],
       "attributes": [
         {
           "id": "number — listing attribute record ID",
@@ -565,9 +695,10 @@ curl -X GET http://localhost:3000/api/listings/my-listings \
 
 ## `GET /api/listings/:id`
 
-Get details of a specific listing by ID, including favorite information and all attributes.
+Get details of a specific listing by ID, including favorite information, photos, and all attributes. Returns 404 if the listing has an active escrow and the user is neither the seller nor the buyer.
 
 **Authentication:** Bearer token
+**Authorization:** If listing has an active escrow, only the seller and buyer can view it
 
 ### Request
 
@@ -606,6 +737,16 @@ Path parameters:
     "createdAt": "ISO 8601 datetime",
     "isArbiter": "boolean"
   },
+  "photos": [
+    {
+      "id": "number — unique photo ID",
+      "filename": "string — filename with extension",
+      "mimeType": "string — MIME type (e.g., 'image/jpeg')",
+      "size": "number — file size in bytes",
+      "position": "number — sort position (0-indexed)",
+      "createdAt": "ISO 8601 datetime — when photo was uploaded"
+    }
+  ],
   "chats": [
     {
       "id": "number — chat ID",
@@ -665,7 +806,7 @@ Path parameters:
 | Status | Description |
 | ------ | ----------- |
 | 401    | Missing or invalid Bearer token |
-| 404    | Listing not found (invalid ID) |
+| 404    | Listing not found (invalid ID or has active escrow and user is not seller/buyer) |
 
 ### Example curl
 

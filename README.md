@@ -81,15 +81,26 @@ Tutti gli endpoint richiedono autenticazione via Bearer token (tranne `/api/auth
 
 ### Listing
 
-| Metodo | Endpoint                    | Descrizione                                        |
-| ------ | --------------------------- | -------------------------------------------------- |
-| GET    | `/api/listings`             | Lista listing (esclusi propri) con paginazione, filtro categoria e attributi |
-| POST   | `/api/listings`             | Crea nuovo listing con categoria opzionale e attributi |
-| PATCH  | `/api/listings/:id`         | Aggiorna listing (nome, prezzo, descrizione, categoria, attributi) |
-| GET    | `/api/listings/my-listings` | Elenca propri listing                              |
-| GET    | `/api/listings/:id`         | Dettagli listing specifico con attributi           |
+| Metodo | Endpoint                     | Descrizione                                        |
+| ------ | ----------------------------- | -------------------------------------------------- |
+| GET    | `/api/listings`              | Lista listing attivi (esclusi propri e con escrow attivi) con foto e paginazione |
+| POST   | `/api/listings`              | Crea nuovo listing con categoria opzionale e attributi |
+| PATCH  | `/api/listings/:id`          | Aggiorna listing (nome, prezzo, descrizione, categoria, attributi) |
+| GET    | `/api/listings/my-listings`  | Elenca propri listing                              |
+| GET    | `/api/listings/my-purchases` | Elenca listing dove sei stato buyer (escrow completati) |
+| GET    | `/api/listings/:id`          | Dettagli listing specifico con attributi e foto    |
 
 [Dettagli completi](docs/api-listings.md)
+
+### Photo Management
+
+| Metodo | Endpoint                         | Descrizione                                     |
+| ------ | -------------------------------- | ----------------------------------------------- |
+| POST   | `/api/listings/:id/photos`       | Carica foto a un listing (max 10 foto, 4MB cad) |
+| DELETE | `/api/listings/:id/photos/:photoId` | Cancella una foto                               |
+| PATCH  | `/api/listings/:id/photos/order` | Riordina foto (modifica posizione)              |
+
+[Dettagli completi](docs/api-photos.md)
 
 ### Attributes
 
