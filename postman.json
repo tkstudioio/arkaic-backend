@@ -312,7 +312,7 @@
                 }
               ]
             },
-            "description": "List all listings except own (paginated). Supports: categoryId, minPrice/maxPrice, search, sort (newest/oldest/price_asc/price_desc), includeChildren, and attribute filters (attr_<id>=<valueId> for select/multi_select, attr_<id>=true|false for boolean, attr_<id>=<min>,<max> for range)"
+            "description": "List all listings except own (paginated, excludes active escrows). Supports: categoryId, minPrice/maxPrice, search, sort (newest/oldest/price_asc/price_desc), includeChildren, and attribute filters (attr_<id>=<valueId> for select/multi_select, attr_<id>=true|false for boolean, attr_<id>=<min>,<max> for range)"
           }
         },
         {
@@ -348,7 +348,97 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "listings", "1"]
             },
-            "description": "Get details of a specific listing"
+            "description": "Get details of a specific listing with photos (ordered by position). Visible only to seller or active buyer (if active escrow exists)"
+          }
+        },
+        {
+          "name": "Get My Purchases",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/listings/my-purchases",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "listings", "my-purchases"]
+            },
+            "description": "List all listings purchased by authenticated user (completed escrows only)"
+          }
+        },
+        {
+          "name": "Upload Photos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "photos",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/listings/1/photos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "listings", "1", "photos"]
+            },
+            "description": "Upload photos to a listing (multipart/form-data). Max 10 photos per listing, max 4MB per file. Only seller can upload. Supports: image/jpeg, image/png, image/webp, image/gif"
+          }
+        },
+        {
+          "name": "Delete Photo",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/listings/1/photos/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "listings", "1", "photos", "1"]
+            },
+            "description": "Delete a photo from a listing. Only seller can delete. Automatically reorders remaining photos."
+          }
+        },
+        {
+          "name": "Reorder Photos",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"photoIds\": [3, 1, 2]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/listings/1/photos/order",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "listings", "1", "photos", "order"]
+            },
+            "description": "Reorder photos by providing array of photoIds in desired order. Must include all existing photo IDs. Only seller can reorder."
           }
         }
       ]
