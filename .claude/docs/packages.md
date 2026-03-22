@@ -20,14 +20,14 @@ Endpoint per registrazione e login basati su firma Schnorr + JWT.
 
 CRUD per i listing del marketplace. Tutti gli endpoint (tranne GET) richiedono auth. Listings can optionally belong to a category via `categoryId`. Supports category and attribute-based filtering on GET endpoints. Attribute validation enforces category-attribute associations, type-correct values, and required attributes. Supports all six attribute types: select (valueId), boolean (valueBool), text (valueText), range (valueText + valueFloat for numeric filtering), date (ISO YYYY-MM-DD in valueText), multi_select (valueIds array stored via ListingAttributeValue join table).
 
-| Metodo | Path           | Auth                         | Scopo                                                 |
-| ------ | -------------- | ---------------------------- | ----------------------------------------------------- |
-| POST   | `/`            | bearerAuth + verifySignature | Crea listing (valida price > dust fee, opt. categoryId + attributes including multi_select valueIds), returns 201 |
-| PATCH  | `/:id`         | bearerAuth + verifySignature | Update listing fields, category, and/or attributes (atomic; cascade delete handles multi_select cleanup) |
-| GET    | `/`            | bearerAuth                   | Lista listing paginati con filtro categoria e attributi (`attr_<id>=valueId` for select/multi_select, `attr_<id>=true/false` for boolean, `attr_<id>=min,max` for range). Excludes listings with active escrows from other buyers. Includes photos |
-| GET    | `/my-listings` | bearerAuth                   | Lista listing dell'utente autenticato (include category + attributes + multiValues + photos) |
-| GET    | `/my-purchases`| bearerAuth                   | Listings purchased by the authenticated user (completed escrows only) |
-| GET    | `/:id`         | bearerAuth                   | Dettaglio listing con seller, category (with parent), attributes, multiValues, and photos. Listings with active escrows are only visible to the buyer and seller involved |
+| Metodo | Path            | Auth                         | Scopo                                                                                                                                                                                                                                             |
+| ------ | --------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/`             | bearerAuth + verifySignature | Crea listing (valida price > dust fee, opt. categoryId + attributes including multi_select valueIds), returns 201                                                                                                                                 |
+| PATCH  | `/:id`          | bearerAuth + verifySignature | Update listing fields, category, and/or attributes (atomic; cascade delete handles multi_select cleanup)                                                                                                                                          |
+| GET    | `/`             | bearerAuth                   | Lista listing paginati con filtro categoria e attributi (`attr_<id>=valueId` for select/multi*select, `attr*<id>=true/false`for boolean,`attr\_<id>=min,max` for range). Excludes listings with active escrows from other buyers. Includes photos |
+| GET    | `/my-listings`  | bearerAuth                   | Lista listing dell'utente autenticato (include category + attributes + multiValues + photos)                                                                                                                                                      |
+| GET    | `/my-purchases` | bearerAuth                   | Listings purchased by the authenticated user (completed escrows only)                                                                                                                                                                             |
+| GET    | `/:id`          | bearerAuth                   | Dettaglio listing con seller, category (with parent), attributes, multiValues, and photos. Listings with active escrows are only visible to the buyer and seller involved                                                                         |
 
 ---
 
@@ -35,11 +35,11 @@ CRUD per i listing del marketplace. Tutti gli endpoint (tranne GET) richiedono a
 
 Read-only endpoints for browsing attributes and building dynamic category filters. All endpoints require `bearerAuth`.
 
-| Metodo | Path                        | Auth       | Scopo                                                        |
-| ------ | --------------------------- | ---------- | ------------------------------------------------------------ |
-| GET    | `/`                         | bearerAuth | List all attributes with their predefined values (range metadata fields included automatically) |
-| GET    | `/by-category/:categoryId`  | bearerAuth | Attributes for a category with required/isFilterable flags and range metadata (rangeMin/rangeMax/rangeStep/rangeUnit) |
-| GET    | `/filters/:categoryId`      | bearerAuth | Filterable attributes with DISTINCT values from actual listings; range type returns metadata instead of values; multi_select returns distinct values via join table |
+| Metodo | Path                       | Auth       | Scopo                                                                                                                                                               |
+| ------ | -------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/`                        | bearerAuth | List all attributes with their predefined values (range metadata fields included automatically)                                                                     |
+| GET    | `/by-category/:categoryId` | bearerAuth | Attributes for a category with required/isFilterable flags and range metadata (rangeMin/rangeMax/rangeStep/rangeUnit)                                               |
+| GET    | `/filters/:categoryId`     | bearerAuth | Filterable attributes with DISTINCT values from actual listings; range type returns metadata instead of values; multi_select returns distinct values via join table |
 
 ---
 
@@ -47,22 +47,23 @@ Read-only endpoints for browsing attributes and building dynamic category filter
 
 Read-only endpoints for browsing the hierarchical category tree. All endpoints require `bearerAuth`. Root categories include `iconName` (e.g., "shirt", "shopping-bag") and `color` (hex code) fields for UI styling. See `.claude/docs/categories.md` for details on icons and colors.
 
-| Metodo | Path      | Auth       | Scopo                                                         |
-| ------ | --------- | ---------- | ------------------------------------------------------------- |
-| GET    | `/`       | bearerAuth | List root categories with children (childrenOf is null), includes iconName and color |
-| GET    | `/:slug`  | bearerAuth | Category detail with children and categoryAttributes (with attribute values), includes iconName and color |
+| Metodo | Path     | Auth       | Scopo                                                                                                     |
+| ------ | -------- | ---------- | --------------------------------------------------------------------------------------------------------- |
+| GET    | `/`      | bearerAuth | List root categories with children (childrenOf is null), includes iconName and color                      |
+| GET    | `/:slug` | bearerAuth | Category detail with children and categoryAttributes (with attribute values), includes iconName and color |
 
 ---
 
 ### photos.ts — Listing photos
 
-Photo upload, deletion, and reorder for listings. All endpoints require `bearerAuth` only (no `verifySignature` -- multipart bodies cannot be Schnorr-signed). Ownership enforced via query-level checks (`sellerPubkey` match). Files stored on disk under `uploads/listings/<listingId>/` and served statically at `GET /uploads/*`.
+Photo upload, deletion, reorder, and URL retrieval for listings. All endpoints require `bearerAuth` only (no `verifySignature` -- multipart bodies cannot be Schnorr-signed). Ownership enforced via query-level checks (`sellerPubkey` match). Files stored in MinIO and accessed via presigned URLs.
 
-| Metodo | Path                    | Auth       | Scopo                                                    |
-| ------ | ----------------------- | ---------- | -------------------------------------------------------- |
-| POST   | `/:id/photos`           | bearerAuth | Upload photos (multipart, max 10 per listing, 4MB each, image/* only) |
-| DELETE | `/:id/photos/:photoId`  | bearerAuth | Delete a single photo (DB record + disk file)            |
-| PATCH  | `/:id/photos/order`     | bearerAuth | Reorder photos by updating position field                |
+| Metodo | Path                       | Auth       | Scopo                                                                  |
+| ------ | -------------------------- | ---------- | ---------------------------------------------------------------------- |
+| POST   | `/:id/photos`              | bearerAuth | Upload photos (multipart, max 10 per listing, 4MB each, image/\* only) |
+| DELETE | `/:id/photos/:photoId`     | bearerAuth | Delete a single photo (DB record + MinIO object)                       |
+| GET    | `/:id/photos/:photoId/url` | bearerAuth | Get a presigned URL for a photo (1h expiry)                            |
+| PATCH  | `/:id/photos/order`        | bearerAuth | Reorder photos by updating position field                              |
 
 ---
 
@@ -70,14 +71,14 @@ Photo upload, deletion, and reorder for listings. All endpoints require `bearerA
 
 Gestione chat buyer-seller per listing specifici.
 
-| Metodo | Path                 | Auth                         | Scopo                          |
-| ------ | -------------------- | ---------------------------- | ------------------------------ |
+| Metodo | Path                 | Auth                         | Scopo                                                                                         |
+| ------ | -------------------- | ---------------------------- | --------------------------------------------------------------------------------------------- |
 | GET    | `/`                  | bearerAuth                   | All chats for authenticated user (buyer or seller), ordered by most recent message, paginated |
-| GET    | `/seller/:listingId` | bearerAuth                   | Chat del seller per un listing |
-| GET    | `/:chatId/escrow`    | bearerAuth                   | Escrow associato alla chat     |
-| GET    | `/:chatId/offer`     | bearerAuth                   | Ultima offerta attiva per chat |
-| GET    | `/:chatId`           | bearerAuth                   | Dettaglio chat completo        |
-| POST   | `/:listingId`        | bearerAuth + verifySignature | Crea chat (idempotente)        |
+| GET    | `/seller/:listingId` | bearerAuth                   | Chat del seller per un listing                                                                |
+| GET    | `/:chatId/escrow`    | bearerAuth                   | Escrow associato alla chat                                                                    |
+| GET    | `/:chatId/offer`     | bearerAuth                   | Ultima offerta attiva per chat                                                                |
+| GET    | `/:chatId`           | bearerAuth                   | Dettaglio chat completo                                                                       |
+| POST   | `/:listingId`        | bearerAuth + verifySignature | Crea chat (idempotente)                                                                       |
 
 ---
 
@@ -85,11 +86,11 @@ Gestione chat buyer-seller per listing specifici.
 
 Favorite/bookmark management for listings. All endpoints require `bearerAuth`. No `verifySignature` needed (no Schnorr-signed bodies).
 
-| Metodo | Path           | Auth       | Scopo                                          |
-| ------ | -------------- | ---------- | ---------------------------------------------- |
-| GET    | `/`            | bearerAuth | List favorited listings, paginated with total   |
-| POST   | `/:listingId`  | bearerAuth | Add favorite (idempotent upsert, returns 201)   |
-| DELETE | `/:listingId`  | bearerAuth | Remove favorite (idempotent, no error if absent)|
+| Metodo | Path          | Auth       | Scopo                                            |
+| ------ | ------------- | ---------- | ------------------------------------------------ |
+| GET    | `/`           | bearerAuth | List favorited listings, paginated with total    |
+| POST   | `/:listingId` | bearerAuth | Add favorite (idempotent upsert, returns 201)    |
+| DELETE | `/:listingId` | bearerAuth | Remove favorite (idempotent, no error if absent) |
 
 ---
 
@@ -111,11 +112,11 @@ Il file piu' complesso. Gestisce l'intero ciclo di vita dell'escrow Bitcoin.
 
 #### Endpoint generali
 
-| Metodo | Path                | Auth                         | Scopo                                                  |
-| ------ | ------------------- | ---------------------------- | ------------------------------------------------------ |
-| GET    | `/:chatId`          | bearerAuth                   | Escrow per chat ID                                     |
-| GET    | `/address/:address` | bearerAuth                   | Escrow per address (auto-update stato da indexer)     |
-| POST   | `/:chatId`          | bearerAuth + verifySignature | Crea escrow con long-polling (attesa 30s primo VTXO)  |
+| Metodo | Path                | Auth                         | Scopo                                                |
+| ------ | ------------------- | ---------------------------- | ---------------------------------------------------- |
+| GET    | `/:chatId`          | bearerAuth                   | Escrow per chat ID                                   |
+| GET    | `/address/:address` | bearerAuth                   | Escrow per address (auto-update stato da indexer)    |
+| POST   | `/:chatId`          | bearerAuth + verifySignature | Crea escrow con long-polling (attesa 30s primo VTXO) |
 
 #### Flusso collaborativo (3-of-3)
 
@@ -143,7 +144,20 @@ Il file piu' complesso. Gestisce l'intero ciclo di vita dell'escrow Bitcoin.
 
 ### prisma.ts — Database client
 
-Singleton `PrismaClient` con adapter `better-sqlite3`. Importa da `@/lib/prisma`.
+Singleton `PrismaClient` for PostgreSQL. Import from `@/lib/prisma`.
+
+### minio.ts — Object storage client
+
+S3-compatible client for MinIO. Import from `@/lib/minio`.
+
+| Export             | Type     | Purpose                                           |
+| ------------------ | -------- | ------------------------------------------------- |
+| `s3`               | S3Client | Configured S3 client instance                     |
+| `MINIO_BUCKET`     | string   | Bucket name from env (default: "arkaic")          |
+| `uploadObject`     | Function | Upload a file buffer to MinIO                     |
+| `deleteObject`     | Function | Delete an object from MinIO                       |
+| `getPresignedUrl`  | Function | Generate a presigned GET URL (default: 1h expiry) |
+| `getPresignedUrls` | Function | Batch presigned URL generation                    |
 
 ### ark.ts — Ark protocol providers
 
@@ -172,16 +186,16 @@ Singleton `PrismaClient` con adapter `better-sqlite3`. Importa da `@/lib/prisma`
 
 ### category.ts — Category ancestry helper
 
-| Export                 | Tipo     | Scopo                                                                       |
-| ---------------------- | -------- | --------------------------------------------------------------------------- |
-| `collectAncestorIds`   | Function | Returns the given categoryId plus all ancestor IDs up to the root. Accepts both `PrismaClient` and transaction client, ensuring transactional isolation when populating `ListingCategory` ancestry during create/update operations. |
+| Export               | Tipo     | Scopo                                                                                                                                                                                                                               |
+| -------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `collectAncestorIds` | Function | Returns the given categoryId plus all ancestor IDs up to the root. Accepts both `PrismaClient` and transaction client, ensuring transactional isolation when populating `ListingCategory` ancestry during create/update operations. |
 
 ### system-messages.ts — System message helper
 
-| Export                 | Tipo     | Scopo                                                                       |
-| ---------------------- | -------- | --------------------------------------------------------------------------- |
-| `SYSTEM_SENDER`        | Constant | Sentinel value `"SYSTEM"` (exported for reference, not used as senderPubkey)|
-| `createSystemMessage`  | Function | Creates a `Message` with `isSystem: true`, `senderPubkey: null`, and sends `new_message` WS notifications. Accepts both `PrismaClient` and transaction client. |
+| Export                | Tipo     | Scopo                                                                                                                                                          |
+| --------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SYSTEM_SENDER`       | Constant | Sentinel value `"SYSTEM"` (exported for reference, not used as senderPubkey)                                                                                   |
+| `createSystemMessage` | Function | Creates a `Message` with `isSystem: true`, `senderPubkey: null`, and sends `new_message` WS notifications. Accepts both `PrismaClient` and transaction client. |
 
 ---
 

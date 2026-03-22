@@ -12,7 +12,8 @@ Backend API Hono per un marketplace Bitcoin escrow costruito sul protocollo Ark 
 
 - **Framework:** Hono (lightweight web framework)
 - **Runtime:** Node.js con `@hono/node-server`
-- **Database:** SQLite via Prisma con `better-sqlite3` adapter
+- **Database:** PostgreSQL via Prisma ORM
+- **Object Storage:** MinIO (S3-compatible) via `@aws-sdk/client-s3`
 - **Real-time:** WebSocket via `@hono/node-ws`
 - **Protocol:** Ark (Bitcoin L2) via `@arkade-os/sdk`
 
@@ -51,18 +52,18 @@ src/
 
 ## Route Map
 
-| Prefisso         | File          | Scopo                                             |
-| ---------------- | ------------- | ------------------------------------------------- |
-| `/api/auth`      | `auth.ts`     | Registrazione, challenge nonce, login JWT        |
-| `/api/listings`  | `listings.ts` | CRUD listing con firma Schnorr, supporto categoria e attributi |
-| `/api/categories`| `categories.ts` | Browsing albero categorie gerarchiche            |
-| `/api/attributes`| `attributes.ts` | Attribute browsing, category-scoped, dynamic filters |
-| `/api/chats`     | `chats.ts`    | Gestione chat buyer-seller                       |
-| `/api/favorites` | `favorites.ts`| User listing bookmarks (add, remove, list)       |
-| `/api/listings`  | `photos.ts`   | Listing photo management (upload, delete, reorder) |
-| `/api/messages`  | `messages.ts` | Messaggi, offerte, risposta offerte              |
-| `/api/escrows`   | `escrows.ts`  | Escrow lifecycle (create, collab, refund)        |
-| `/ws`            | `ws.ts`       | WebSocket per notifiche push                     |
+| Prefisso          | File            | Scopo                                                          |
+| ----------------- | --------------- | -------------------------------------------------------------- |
+| `/api/auth`       | `auth.ts`       | Registrazione, challenge nonce, login JWT                      |
+| `/api/listings`   | `listings.ts`   | CRUD listing con firma Schnorr, supporto categoria e attributi |
+| `/api/categories` | `categories.ts` | Browsing albero categorie gerarchiche                          |
+| `/api/attributes` | `attributes.ts` | Attribute browsing, category-scoped, dynamic filters           |
+| `/api/chats`      | `chats.ts`      | Gestione chat buyer-seller                                     |
+| `/api/favorites`  | `favorites.ts`  | User listing bookmarks (add, remove, list)                     |
+| `/api/listings`   | `photos.ts`     | Listing photo management (upload, delete, reorder)             |
+| `/api/messages`   | `messages.ts`   | Messaggi, offerte, risposta offerte                            |
+| `/api/escrows`    | `escrows.ts`    | Escrow lifecycle (create, collab, refund)                      |
+| `/ws`             | `ws.ts`         | WebSocket per notifiche push                                   |
 
 ---
 
@@ -70,26 +71,26 @@ src/
 
 ### Entita' principali
 
-| Modello             | Scopo                                           | Chiave primaria      |
-| ------------------- | ----------------------------------------------- | -------------------- |
-| **Account**         | Utente con pubkey, username, flag arbiter       | `pubkey`             |
-| **Listing**         | Prodotto in vendita (nome, prezzo, seller, categoria) | `id` (autoincrement) |
-| **Category**        | Categorie gerarchiche con slug unico            | `id`                 |
-| **ListingCategory** | Denormalized ancestry index: stores the listing's direct categoryId plus all ancestor category IDs, enabling efficient subtree filtering | `(listingId, categoryId)` |
-| **Chat**            | Conversazione buyer-seller per un listing       | `id`                 |
-| **Message**         | Messaggio testuale o di sistema in una chat     | `id`                 |
-| **Offer**           | Proposta di prezzo da buyer dentro un messaggio | `id`                 |
-| **OfferAcceptance** | Risposta seller a un'offerta (accept/reject)    | `id`                 |
-| **Escrow**          | Record VTXO escrow con stato, pubkey, PSBT      | `address` (taproot)  |
-| **Review**          | Recensione utente legata a un escrow            | `id`                 |
-| **Challenge**       | Nonce per autenticazione con scadenza           | `id`                 |
-| **Attribute**       | Dynamic product attribute (select, boolean, text, range, date, multi_select types; range type carries rangeMin/rangeMax/rangeStep/rangeUnit metadata) | `id` |
-| **AttributeValue**  | Predefined value for a select or multi_select attribute | `id`          |
-| **CategoryAttribute** | Links an attribute to a category (with required/filterable flags) | `id` |
-| **ListingAttribute** | Assigns an attribute value to a listing; valueFloat stores numeric value for range type filtering | `id` (unique on listingId+attributeId) |
-| **ListingAttributeValue** | Join table for multi_select attribute values on a listing (one ListingAttribute → many AttributeValue rows) | `id` |
-| **ListingPhoto**    | Photo attached to a listing (filename, mimeType, size, position; cascade delete on listing removal; files stored on disk under `uploads/listings/<listingId>/`) | `id` |
-| **Favorite**        | User bookmark on a listing (unique per account+listing, cascade delete on listing removal) | `id` |
+| Modello                   | Scopo                                                                                                                                                 | Chiave primaria                        |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| **Account**               | Utente con pubkey, username, flag arbiter                                                                                                             | `pubkey`                               |
+| **Listing**               | Prodotto in vendita (nome, prezzo, seller, categoria)                                                                                                 | `id` (autoincrement)                   |
+| **Category**              | Categorie gerarchiche con slug unico                                                                                                                  | `id`                                   |
+| **ListingCategory**       | Denormalized ancestry index: stores the listing's direct categoryId plus all ancestor category IDs, enabling efficient subtree filtering              | `(listingId, categoryId)`              |
+| **Chat**                  | Conversazione buyer-seller per un listing                                                                                                             | `id`                                   |
+| **Message**               | Messaggio testuale o di sistema in una chat                                                                                                           | `id`                                   |
+| **Offer**                 | Proposta di prezzo da buyer dentro un messaggio                                                                                                       | `id`                                   |
+| **OfferAcceptance**       | Risposta seller a un'offerta (accept/reject)                                                                                                          | `id`                                   |
+| **Escrow**                | Record VTXO escrow con stato, pubkey, PSBT                                                                                                            | `address` (taproot)                    |
+| **Review**                | Recensione utente legata a un escrow                                                                                                                  | `id`                                   |
+| **Challenge**             | Nonce per autenticazione con scadenza                                                                                                                 | `id`                                   |
+| **Attribute**             | Dynamic product attribute (select, boolean, text, range, date, multi_select types; range type carries rangeMin/rangeMax/rangeStep/rangeUnit metadata) | `id`                                   |
+| **AttributeValue**        | Predefined value for a select or multi_select attribute                                                                                               | `id`                                   |
+| **CategoryAttribute**     | Links an attribute to a category (with required/filterable flags)                                                                                     | `id`                                   |
+| **ListingAttribute**      | Assigns an attribute value to a listing; valueFloat stores numeric value for range type filtering                                                     | `id` (unique on listingId+attributeId) |
+| **ListingAttributeValue** | Join table for multi_select attribute values on a listing (one ListingAttribute → many AttributeValue rows)                                           | `id`                                   |
+| **ListingPhoto**          | Photo attached to a listing (objectKey for MinIO, mimeType, size, position; cascade delete on listing removal)                                        | `id`                                   |
+| **Favorite**              | User bookmark on a listing (unique per account+listing, cascade delete on listing removal)                                                            | `id`                                   |
 
 ### Relazioni chiave
 
