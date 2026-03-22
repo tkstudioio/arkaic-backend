@@ -57,14 +57,10 @@ export async function buildEscrowTransaction(
     escrow.timelockExpiry,
   );
 
-  const recipientPubkey =
-    pathType === "collaborative" ? ctx.sellerPubkey : ctx.buyerPubkey;
-  const spendPath =
-    pathType === "collaborative" ? ctx.collaborativePath : ctx.refundPath;
+  const recipientPubkey = pathType === "collaborative" ? ctx.sellerPubkey : ctx.buyerPubkey;
+  const spendPath = pathType === "collaborative" ? ctx.collaborativePath : ctx.refundPath;
 
-  const serverUnrollScript = CSVMultisigTapscript.decode(
-    hex.decode(info.checkpointTapscript),
-  );
+  const serverUnrollScript = CSVMultisigTapscript.decode(hex.decode(info.checkpointTapscript));
 
   const recipientScript = new DefaultVtxo.Script({
     pubKey: recipientPubkey,
@@ -89,10 +85,7 @@ export async function buildEscrowTransaction(
     tapTree: ctx.escrowScript.encode(),
   }));
 
-  const totalValue = vtxos.reduce(
-    (sum: bigint, vtxo: VirtualCoin) => sum + BigInt(vtxo.value),
-    0n,
-  );
+  const totalValue = vtxos.reduce((sum: bigint, vtxo: VirtualCoin) => sum + BigInt(vtxo.value), 0n);
 
   const outputs = [
     {
@@ -101,16 +94,10 @@ export async function buildEscrowTransaction(
     },
   ];
 
-  const { arkTx, checkpoints } = buildOffchainTx(
-    inputs,
-    outputs,
-    serverUnrollScript,
-  );
+  const { arkTx, checkpoints } = buildOffchainTx(inputs, outputs, serverUnrollScript);
 
   const psbt = base64.encode(arkTx.toPSBT());
-  const recipientAddress = recipientScript
-    .address("tark", ctx.serverPubkey)
-    .encode();
+  const recipientAddress = recipientScript.address("tark", ctx.serverPubkey).encode();
   const checkpointPsbts = checkpoints.map((cp) => base64.encode(cp.toPSBT()));
 
   return { psbt, recipientAddress, checkpointPsbts, error: null } as const;

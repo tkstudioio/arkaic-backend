@@ -49,9 +49,7 @@ async function validateAttributes(
     });
     if (!attr) return { error: `Attribute ${input.attributeId} not found` };
 
-    const catAttr = categoryAttrs.find(
-      (ca) => ca.attributeId === input.attributeId,
-    );
+    const catAttr = categoryAttrs.find((ca) => ca.attributeId === input.attributeId);
     if (!catAttr) {
       return {
         error: `Attribute '${attr.slug}' is not valid for category '${category.name}'`,
@@ -115,20 +113,12 @@ async function validateAttributes(
           error: `Attribute '${attr.slug}' requires a numeric valueText`,
         };
       }
-      if (
-        attr.rangeMin !== null &&
-        attr.rangeMin !== undefined &&
-        numericValue < attr.rangeMin
-      ) {
+      if (attr.rangeMin !== null && attr.rangeMin !== undefined && numericValue < attr.rangeMin) {
         return {
           error: `Attribute '${attr.slug}' value must be >= ${attr.rangeMin}`,
         };
       }
-      if (
-        attr.rangeMax !== null &&
-        attr.rangeMax !== undefined &&
-        numericValue > attr.rangeMax
-      ) {
+      if (attr.rangeMax !== null && attr.rangeMax !== undefined && numericValue > attr.rangeMax) {
         return {
           error: `Attribute '${attr.slug}' value must be <= ${attr.rangeMax}`,
         };
@@ -201,9 +191,7 @@ async function validateAttributes(
 
   const requiredAttrs = categoryAttrs.filter((ca) => ca.required);
   for (const req of requiredAttrs) {
-    const provided = attributeInputs.find(
-      (a) => a.attributeId === req.attributeId,
-    );
+    const provided = attributeInputs.find((a) => a.attributeId === req.attributeId);
     if (!provided) {
       return { error: `Required attribute '${req.attribute.name}' is missing` };
     }
@@ -249,10 +237,7 @@ listings.post(
     const { name, price, description, categoryId, attributes } = c.req.valid("json");
 
     if (price <= dust)
-      return c.text(
-        "Product price can't be less than ark provider's dust fee.",
-        400,
-      );
+      return c.text("Product price can't be less than ark provider's dust fee.", 400);
 
     if (attributes !== undefined && categoryId === undefined) {
       return c.text("categoryId is required when attributes are provided", 400);
@@ -360,19 +345,13 @@ listings.patch(
     });
 
     if (activeEscrow) {
-      return c.json(
-        { error: "Cannot modify a listing with an active escrow" },
-        409,
-      );
+      return c.json({ error: "Cannot modify a listing with an active escrow" }, 409);
     }
 
     if (price !== undefined) {
       const { dust } = await arkProvider.getInfo();
       if (price <= dust)
-        return c.text(
-          "Product price can't be less than ark provider's dust fee.",
-          400,
-        );
+        return c.text("Product price can't be less than ark provider's dust fee.", 400);
     }
 
     if (categoryId !== undefined && categoryId !== null) {
@@ -380,8 +359,7 @@ listings.patch(
       if (!cat) return c.text("Category not found", 404);
     }
 
-    const effectiveCategoryId =
-      categoryId !== undefined ? categoryId : listing.categoryId;
+    const effectiveCategoryId = categoryId !== undefined ? categoryId : listing.categoryId;
 
     if (attributes && attributes.length > 0) {
       if (!effectiveCategoryId) {
@@ -469,8 +447,7 @@ listings.get("/", async (c) => {
   const skip = Number(c.req.query("offset")) || 0;
 
   const categoryIdParam = c.req.query("categoryId");
-  const categoryId =
-    categoryIdParam !== undefined ? Number(categoryIdParam) : undefined;
+  const categoryId = categoryIdParam !== undefined ? Number(categoryIdParam) : undefined;
 
   const minPriceParam = c.req.query("minPrice");
   const minPrice = minPriceParam !== undefined ? Number(minPriceParam) : undefined;
@@ -542,10 +519,7 @@ listings.get("/", async (c) => {
   }
 
   if (search) {
-    where.OR = [
-      { name: { contains: search } },
-      { description: { contains: search } },
-    ];
+    where.OR = [{ name: { contains: search } }, { description: { contains: search } }];
   }
 
   if (attributeFilters.length > 0) {
@@ -564,7 +538,10 @@ listings.get("/", async (c) => {
 
     for (const f of attributeFilters) {
       if (!filterableAttrIds.has(f.attributeId)) {
-        return c.text(`Attribute ${f.attributeId} is not filterable for category ${categoryId}`, 400);
+        return c.text(
+          `Attribute ${f.attributeId} is not filterable for category ${categoryId}`,
+          400,
+        );
       }
     }
 
@@ -730,11 +707,7 @@ listings.get("/:id", async (c) => {
 
   const activeEscrow = listing.chats
     .map((chat) => chat.escrow)
-    .find(
-      (esc) =>
-        esc !== null &&
-        !["completed", "refunded"].includes(esc.status),
-    );
+    .find((esc) => esc !== null && !["completed", "refunded"].includes(esc.status));
 
   if (activeEscrow) {
     const isSeller = listing.sellerPubkey === pubkey;

@@ -35,10 +35,7 @@ messages.post(
       return c.text("Chat not found", 404);
     }
 
-    if (
-      senderPubkey !== chat.buyerPubkey &&
-      senderPubkey !== chat.listing.sellerPubkey
-    ) {
+    if (senderPubkey !== chat.buyerPubkey && senderPubkey !== chat.listing.sellerPubkey) {
       return c.text("Forbidden", 403);
     }
 
@@ -85,12 +82,10 @@ messages.post(
         },
       });
 
-      await createSystemMessage(
-        tx,
-        chatId,
-        `Offer of ${body.offeredPrice} sats submitted`,
-        [chat.buyerPubkey, chat.listing.sellerPubkey],
-      );
+      await createSystemMessage(tx, chatId, `Offer of ${body.offeredPrice} sats submitted`, [
+        chat.buyerPubkey,
+        chat.listing.sellerPubkey,
+      ]);
 
       return { ...newMessage, offer };
     });
@@ -162,12 +157,10 @@ messages.post(
       });
 
       const statusText = accepted ? "accepted" : "rejected";
-      await createSystemMessage(
-        tx,
-        chatId,
-        `Offer ${statusText}`,
-        [offer.message.chat.buyerPubkey, offer.message.chat.listing.sellerPubkey],
-      );
+      await createSystemMessage(tx, chatId, `Offer ${statusText}`, [
+        offer.message.chat.buyerPubkey,
+        offer.message.chat.listing.sellerPubkey,
+      ]);
 
       return acc;
     });
@@ -194,10 +187,7 @@ messages.get("/:chatId/offers/active", async (c) => {
   });
 
   // Verify user is buyer or seller of this chat
-  if (
-    !chat ||
-    (chat.buyerPubkey !== pubkey && chat.listing.sellerPubkey !== pubkey)
-  ) {
+  if (!chat || (chat.buyerPubkey !== pubkey && chat.listing.sellerPubkey !== pubkey)) {
     return c.text("Chat not found", 404);
   }
 

@@ -25,7 +25,7 @@ export const bearerAuth = createMiddleware<AuthEnv>(async (c, next) => {
     if (!account) return c.text("Account not found", 401);
 
     c.set("pubkey", account.pubkey);
-  } catch (e) {
+  } catch (_e) {
     return c.text("JWT not valid", 401);
   }
 

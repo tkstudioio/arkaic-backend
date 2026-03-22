@@ -97,7 +97,7 @@ photos.post("/:id/photos", async (c) => {
     });
 
     return c.json(created, 201);
-  } catch (err) {
+  } catch (_err) {
     for (const fp of writtenFiles) {
       await unlink(fp).catch(() => {});
     }

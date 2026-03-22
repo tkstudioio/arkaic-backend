@@ -56,44 +56,37 @@ auth.post(
   },
 );
 
-auth.post(
-  "/challenge",
-  sValidator("json", z.object({ pubkey: z.string() })),
-  async (c) => {
-    const { pubkey } = c.req.valid("json");
+auth.post("/challenge", sValidator("json", z.object({ pubkey: z.string() })), async (c) => {
+  const { pubkey } = c.req.valid("json");
 
-    const nonce = crypto.randomBytes(32).toString("hex");
-    const expiry = new Date(Date.now() + 30_000);
+  const nonce = crypto.randomBytes(32).toString("hex");
+  const expiry = new Date(Date.now() + 30_000);
 
-    await prisma.challenge.deleteMany({
-      where: {
-        expiry: { lt: new Date() },
-      },
-    });
+  await prisma.challenge.deleteMany({
+    where: {
+      expiry: { lt: new Date() },
+    },
+  });
 
-    const challenge = await prisma.challenge.upsert({
-      where: { pubkey },
-      update: {
-        nonce,
-        expiry,
-      },
-      create: {
-        pubkey,
-        nonce,
-        expiry,
-      },
-    });
+  const challenge = await prisma.challenge.upsert({
+    where: { pubkey },
+    update: {
+      nonce,
+      expiry,
+    },
+    create: {
+      pubkey,
+      nonce,
+      expiry,
+    },
+  });
 
-    return c.json(challenge);
-  },
-);
+  return c.json(challenge);
+});
 
 auth.post(
   "/login",
-  sValidator(
-    "json",
-    z.object({ pubkey: z.string(), nonce: z.string(), signature: z.string() }),
-  ),
+  sValidator("json", z.object({ pubkey: z.string(), nonce: z.string(), signature: z.string() })),
   async (c) => {
     const { pubkey, nonce, signature } = c.req.valid("json");
 

@@ -13,10 +13,7 @@ chats.get("/", async (c) => {
   const skip = Number(c.req.query("offset")) || 0;
 
   const where = {
-    OR: [
-      { buyerPubkey: pubkey },
-      { listing: { sellerPubkey: pubkey } },
-    ],
+    OR: [{ buyerPubkey: pubkey }, { listing: { sellerPubkey: pubkey } }],
   };
 
   const [allChats, total] = await Promise.all([
@@ -89,10 +86,7 @@ chats.get("/:chatId/escrow", async (c) => {
     include: { listing: true },
   });
 
-  if (
-    !chat ||
-    (chat.buyerPubkey !== pubkey && chat.listing.sellerPubkey !== pubkey)
-  ) {
+  if (!chat || (chat.buyerPubkey !== pubkey && chat.listing.sellerPubkey !== pubkey)) {
     return c.text("Chat not found", 404);
   }
 
@@ -115,10 +109,7 @@ chats.get("/:chatId/offer", async (c) => {
   });
 
   // Check authorization first - return 404 if not authorized to prevent chat existence leak
-  if (
-    !chat ||
-    (chat.buyerPubkey !== pubkey && chat.listing.sellerPubkey !== pubkey)
-  ) {
+  if (!chat || (chat.buyerPubkey !== pubkey && chat.listing.sellerPubkey !== pubkey)) {
     return c.text("Chat not found", 404);
   }
 

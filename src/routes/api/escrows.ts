@@ -17,17 +17,15 @@ escrows.use(bearerAuth);
 const FUNDING_POLL_INTERVAL_MS = 3000;
 const FUNDING_POLL_TIMEOUT_MS = 30000;
 
-async function checkAndUpdateFunding(
-  escrow: {
-    address: string;
-    buyerPubkey: string;
-    sellerPubkey: string;
-    timelockExpiry: number;
-    price: number;
-    chatId: number;
-    status: string;
-  },
-): Promise<{ updated: boolean; escrow: typeof escrow; total: number }> {
+async function checkAndUpdateFunding(escrow: {
+  address: string;
+  buyerPubkey: string;
+  sellerPubkey: string;
+  timelockExpiry: number;
+  price: number;
+  chatId: number;
+  status: string;
+}): Promise<{ updated: boolean; escrow: typeof escrow; total: number }> {
   const { escrowScript } = await buildEscrowContext(
     escrow.buyerPubkey,
     escrow.sellerPubkey,
@@ -38,10 +36,7 @@ async function checkAndUpdateFunding(
     scripts: [hex.encode(escrowScript.pkScript)],
   });
 
-  const total = (vtxos as VirtualCoin[]).reduce(
-    (acc, vtxo) => acc + vtxo.value,
-    0,
-  );
+  const total = (vtxos as VirtualCoin[]).reduce((acc, vtxo) => acc + vtxo.value, 0);
 
   if (total <= 0) {
     return { updated: false, escrow, total };
@@ -62,12 +57,10 @@ async function checkAndUpdateFunding(
         },
         data: { status: newStatus },
       });
-      await createSystemMessage(
-        tx,
-        escrow.chatId,
-        systemMsg,
-        [escrow.buyerPubkey, escrow.sellerPubkey],
-      );
+      await createSystemMessage(tx, escrow.chatId, systemMsg, [
+        escrow.buyerPubkey,
+        escrow.sellerPubkey,
+      ]);
       return esc;
     });
     return { updated: true, escrow: updatedEscrow as typeof escrow, total };
@@ -186,12 +179,10 @@ escrows.post(
         create: newEscrowValues,
       });
 
-      await createSystemMessage(
-        tx,
-        chatId,
-        `Escrow created at address ${address}`,
-        [buyerPubkey, sellerPubkey],
-      );
+      await createSystemMessage(tx, chatId, `Escrow created at address ${address}`, [
+        buyerPubkey,
+        sellerPubkey,
+      ]);
 
       return esc;
     });
@@ -245,7 +236,7 @@ escrows.get("/address/:address", async (c) => {
       notifyEscrowUpdate(result.escrow);
     }
     return c.json(result.escrow);
-  } catch (e) {
+  } catch (_e) {
     return c.json({ error: "Failed to check escrow funding" }, 502);
   }
 });
@@ -259,14 +250,10 @@ escrows.get("/address/:address/collaborate/seller-psbt", async (c) => {
 
   const escrow = await prisma.escrow.findUnique({ where: { address } });
   if (!escrow) return c.json({ error: "Escrow not found" }, 404);
-  if (escrow.sellerPubkey !== pubkey)
-    return c.json({ error: "Forbidden" }, 403);
+  if (escrow.sellerPubkey !== pubkey) return c.json({ error: "Forbidden" }, 403);
 
   if (escrow.status !== "fundLocked") {
-    return c.json(
-      { error: `Cannot build PSBT in ${escrow.status} status` },
-      400,
-    );
+    return c.json({ error: `Cannot build PSBT in ${escrow.status} status` }, 400);
   }
 
   try {
@@ -277,7 +264,7 @@ escrows.get("/address/:address/collaborate/seller-psbt", async (c) => {
       collaboratePsbt: result.psbt,
       recipientAddress: result.recipientAddress,
     });
-  } catch (e) {
+  } catch (_e) {
     return c.json({ error: "Failed to build collaborative PSBT" }, 502);
   }
 });
@@ -293,8 +280,7 @@ escrows.post(
 
     const escrow = await prisma.escrow.findUnique({ where: { address } });
     if (!escrow) return c.json({ error: "Escrow not found" }, 404);
-    if (escrow.sellerPubkey !== pubkey)
-      return c.json({ error: "Forbidden" }, 403);
+    if (escrow.sellerPubkey !== pubkey) return c.json({ error: "Forbidden" }, 403);
 
     await prisma.$transaction(async (tx) => {
       await tx.escrow.update({
@@ -305,12 +291,10 @@ escrows.post(
         },
       });
 
-      await createSystemMessage(
-        tx,
-        escrow.chatId,
-        "Escrow status: seller ready",
-        [escrow.buyerPubkey, escrow.sellerPubkey],
-      );
+      await createSystemMessage(tx, escrow.chatId, "Escrow status: seller ready", [
+        escrow.buyerPubkey,
+        escrow.sellerPubkey,
+      ]);
     });
 
     notifyEscrowUpdate(escrow);
@@ -349,8 +333,7 @@ escrows.post(
 
     const escrow = await prisma.escrow.findUnique({ where: { address } });
     if (!escrow) return c.json({ error: "Escrow not found" }, 404);
-    if (escrow.buyerPubkey !== pubkey)
-      return c.json({ error: "Forbidden" }, 403);
+    if (escrow.buyerPubkey !== pubkey) return c.json({ error: "Forbidden" }, 403);
 
     if (escrow.status !== "sellerReady") {
       return c.json({ error: "Seller has not signed yet" }, 400);
@@ -375,12 +358,10 @@ escrows.post(
           },
         });
 
-        await createSystemMessage(
-          tx,
-          escrow.chatId,
-          "Escrow status: buyer submitted",
-          [escrow.buyerPubkey, escrow.sellerPubkey],
-        );
+        await createSystemMessage(tx, escrow.chatId, "Escrow status: buyer submitted", [
+          escrow.buyerPubkey,
+          escrow.sellerPubkey,
+        ]);
 
         return esc;
       });
@@ -388,7 +369,7 @@ escrows.post(
       notifyEscrowUpdate(escrow);
 
       return c.json({ arkTxid, signedCheckpointTxs });
-    } catch (e) {
+    } catch (_e) {
       return c.json({ error: "Failed to submit transaction" }, 502);
     }
   },
@@ -405,8 +386,7 @@ escrows.post(
 
     const escrow = await prisma.escrow.findUnique({ where: { address } });
     if (!escrow) return c.json({ error: "Escrow not found" }, 404);
-    if (escrow.buyerPubkey !== pubkey)
-      return c.json({ error: "Forbidden" }, 403);
+    if (escrow.buyerPubkey !== pubkey) return c.json({ error: "Forbidden" }, 403);
 
     if (escrow.status !== "buyerSubmitted") {
       return c.json({ error: "Transaction not submitted yet" }, 400);
@@ -421,12 +401,10 @@ escrows.post(
         },
       });
 
-      await createSystemMessage(
-        tx,
-        escrow.chatId,
-        "Escrow status: buyer checkpoints signed",
-        [escrow.buyerPubkey, escrow.sellerPubkey],
-      );
+      await createSystemMessage(tx, escrow.chatId, "Escrow status: buyer checkpoints signed", [
+        escrow.buyerPubkey,
+        escrow.sellerPubkey,
+      ]);
     });
 
     notifyEscrowUpdate(escrow);
@@ -442,8 +420,7 @@ escrows.get("/address/:address/collaborate/seller-checkpoints", async (c) => {
 
   const escrow = await prisma.escrow.findUnique({ where: { address } });
   if (!escrow) return c.json({ error: "Escrow not found" }, 404);
-  if (escrow.sellerPubkey !== pubkey)
-    return c.json({ error: "Forbidden" }, 403);
+  if (escrow.sellerPubkey !== pubkey) return c.json({ error: "Forbidden" }, 403);
 
   if (!escrow.collabArkTxid || !escrow.buyerSignedCheckpoints) {
     return c.json({ status: escrow.status, checkpointTxs: null });
@@ -467,8 +444,7 @@ escrows.post(
 
     const escrow = await prisma.escrow.findUnique({ where: { address } });
     if (!escrow) return c.json({ error: "Escrow not found" }, 404);
-    if (escrow.sellerPubkey !== pubkey)
-      return c.json({ error: "Forbidden" }, 403);
+    if (escrow.sellerPubkey !== pubkey) return c.json({ error: "Forbidden" }, 403);
 
     if (escrow.status !== "buyerCheckpointsSigned") {
       return c.json({ error: "Buyer has not signed checkpoints yet" }, 400);
@@ -476,7 +452,7 @@ escrows.post(
 
     try {
       await arkProvider.finalizeTx(escrow.collabArkTxid!, signedCheckpointTxs);
-    } catch (e) {
+    } catch (_e) {
       return c.json({ error: "Failed to finalize transaction" }, 502);
     }
 
@@ -489,12 +465,10 @@ escrows.post(
         where: { id: escrow.chatId },
         data: { status: "closed" },
       });
-      await createSystemMessage(
-        tx,
-        escrow.chatId,
-        "Escrow completed. Funds released to seller.",
-        [escrow.buyerPubkey, escrow.sellerPubkey],
-      );
+      await createSystemMessage(tx, escrow.chatId, "Escrow completed. Funds released to seller.", [
+        escrow.buyerPubkey,
+        escrow.sellerPubkey,
+      ]);
     });
 
     notifyEscrowUpdate(escrow);
@@ -522,7 +496,7 @@ escrows.get("/address/:address/refund/psbt", async (c) => {
       refundPsbt: result.psbt,
       recipientAddress: result.recipientAddress,
     });
-  } catch (e) {
+  } catch (_e) {
     return c.json({ error: "Failed to build refund PSBT" }, 502);
   }
 });
@@ -538,8 +512,7 @@ escrows.post(
 
     const escrow = await prisma.escrow.findUnique({ where: { address } });
     if (!escrow) return c.json({ error: "Escrow not found" }, 404);
-    if (escrow.buyerPubkey !== pubkey)
-      return c.json({ error: "Forbidden" }, 403);
+    if (escrow.buyerPubkey !== pubkey) return c.json({ error: "Forbidden" }, 403);
 
     try {
       const result = await buildEscrowTransaction(escrow, "refund");
@@ -551,7 +524,7 @@ escrows.post(
       );
 
       return c.json({ arkTxid, signedCheckpointTxs });
-    } catch (e) {
+    } catch (_e) {
       return c.json({ error: "Failed to submit transaction" }, 502);
     }
   },
@@ -574,21 +547,17 @@ escrows.post(
 
     const escrow = await prisma.escrow.findUnique({ where: { address } });
     if (!escrow) return c.json({ error: "Escrow not found" }, 404);
-    if (escrow.buyerPubkey !== pubkey)
-      return c.json({ error: "Forbidden" }, 403);
+    if (escrow.buyerPubkey !== pubkey) return c.json({ error: "Forbidden" }, 403);
 
     // Allow refund if funds are locked, partially funded, or seller signed but disappeared
     const refundableStatuses = ["fundLocked", "partiallyFunded", "sellerReady"];
     if (!refundableStatuses.includes(escrow.status)) {
-      return c.json(
-        { error: `Cannot refund escrow in ${escrow.status} status` },
-        400,
-      );
+      return c.json({ error: `Cannot refund escrow in ${escrow.status} status` }, 400);
     }
 
     try {
       await arkProvider.finalizeTx(arkTxid, signedCheckpointTxs);
-    } catch (e) {
+    } catch (_e) {
       return c.json({ error: "Failed to finalize transaction" }, 502);
     }
 
@@ -601,12 +570,10 @@ escrows.post(
         where: { id: escrow.chatId },
         data: { status: "closed" },
       });
-      await createSystemMessage(
-        tx,
-        escrow.chatId,
-        "Escrow refunded. Funds returned to buyer.",
-        [escrow.buyerPubkey, escrow.sellerPubkey],
-      );
+      await createSystemMessage(tx, escrow.chatId, "Escrow refunded. Funds returned to buyer.", [
+        escrow.buyerPubkey,
+        escrow.sellerPubkey,
+      ]);
     });
 
     notifyEscrowUpdate(escrow);

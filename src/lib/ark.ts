@@ -1,9 +1,4 @@
-import {
-  ESPLORA_URL,
-  EsploraProvider,
-  RestArkProvider,
-  RestIndexerProvider,
-} from "@arkade-os/sdk";
+import { ESPLORA_URL, EsploraProvider, RestArkProvider, RestIndexerProvider } from "@arkade-os/sdk";
 import { hex } from "@scure/base";
 
 const ARK_SERVER_URL = "https://mutinynet.arkade.sh";
