@@ -2,9 +2,8 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
-  GetObjectCommand,
+  PutBucketPolicyCommand,
 } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const MINIO_ENDPOINT = process.env.MINIO_ENDPOINT;
 const MINIO_ACCESS_KEY = process.env.MINIO_ACCESS_KEY;
@@ -51,23 +50,27 @@ export async function deleteObject(key: string): Promise<void> {
   );
 }
 
-export async function getPresignedUrl(key: string, expiresIn = 3600): Promise<string> {
-  return getSignedUrl(
-    s3,
-    new GetObjectCommand({
+export async function makePublic(): Promise<void> {
+  const policy = {
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Effect: "Allow",
+        Principal: "*",
+        Action: "s3:GetObject",
+        Resource: `arn:aws:s3:::${MINIO_BUCKET}/*`,
+      },
+    ],
+  };
+
+  await s3.send(
+    new PutBucketPolicyCommand({
       Bucket: MINIO_BUCKET,
-      Key: key,
+      Policy: JSON.stringify(policy),
     }),
-    { expiresIn },
   );
 }
 
-export async function getPresignedUrls(
-  keys: string[],
-  expiresIn = 3600,
-): Promise<Map<string, string>> {
-  const entries = await Promise.all(
-    keys.map(async (key) => [key, await getPresignedUrl(key, expiresIn)] as const),
-  );
-  return new Map(entries);
+export function getPublicUrl(key: string): string {
+  return `${MINIO_ENDPOINT}/${MINIO_BUCKET}/${key}`;
 }

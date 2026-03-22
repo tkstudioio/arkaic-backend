@@ -3,7 +3,7 @@
 
 import { type AuthEnv, bearerAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { uploadObject, deleteObject, getPresignedUrl } from "@/lib/minio";
+import { uploadObject, deleteObject, getPublicUrl } from "@/lib/minio";
 import { sValidator } from "@hono/standard-validator";
 import { Hono } from "hono";
 import z from "zod";
@@ -90,7 +90,10 @@ photos.post("/:id/photos", async (c) => {
       return results;
     });
 
-    return c.json(created, 201);
+    return c.json(
+      created.map((p) => ({ ...p, url: getPublicUrl(p.filename) })),
+      201,
+    );
   } catch (_err) {
     for (const key of uploadedKeys) {
       await deleteObject(key).catch(() => {});
@@ -115,20 +118,6 @@ photos.delete("/:id/photos/:photoId", async (c) => {
   await deleteObject(photo.filename).catch(() => {});
 
   return c.json({ deleted: true });
-});
-
-photos.get("/:id/photos/:photoId/url", async (c) => {
-  const id = Number(c.req.param("id"));
-  const photoId = Number(c.req.param("photoId"));
-  if (isNaN(id) || isNaN(photoId)) return c.text("Invalid id", 400);
-
-  const photo = await prisma.listingPhoto.findFirst({
-    where: { id: photoId, listingId: id },
-  });
-  if (!photo) return c.text("Photo not found", 404);
-
-  const url = await getPresignedUrl(photo.filename);
-  return c.json({ url });
 });
 
 photos.patch(

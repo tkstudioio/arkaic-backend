@@ -5,7 +5,7 @@ import { CreateBucketCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
 
 import { setupWebSocket } from "@/routes/ws";
 import { api } from "@/routes/api";
-import { s3, MINIO_BUCKET } from "@/lib/minio";
+import { s3, MINIO_BUCKET, makePublic } from "@/lib/minio";
 
 const app = new Hono();
 
@@ -27,6 +27,8 @@ async function ensureBucket() {
       throw err;
     }
   }
+  await makePublic();
+  console.log(`Made bucket ${MINIO_BUCKET} publicly readable`);
 }
 
 await ensureBucket();

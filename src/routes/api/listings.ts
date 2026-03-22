@@ -2,6 +2,7 @@ import { arkProvider } from "@/lib/ark";
 import { type AuthEnv, bearerAuth, verifySignature } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { collectAncestorIds } from "@/lib/category";
+import { getPublicUrl } from "@/lib/minio";
 import { Prisma } from "@/generated/prisma/client";
 import { sValidator } from "@hono/standard-validator";
 import { Hono } from "hono";
@@ -10,6 +11,13 @@ import z from "zod";
 export const listings = new Hono<AuthEnv>();
 
 listings.use(bearerAuth);
+
+function withPhotoUrls<T extends { photos: { filename: string }[] }>(listing: T) {
+  return {
+    ...listing,
+    photos: listing.photos.map((p) => ({ ...p, url: getPublicUrl(p.filename) })),
+  };
+}
 
 const attributeInputSchema = z.object({
   attributeId: z.number().int().positive(),
@@ -307,7 +315,7 @@ listings.post(
       });
     });
 
-    return c.json(result, 201);
+    return c.json(withPhotoUrls(result!), 201);
   },
 );
 
@@ -437,7 +445,7 @@ listings.patch(
       });
     });
 
-    return c.json(updated);
+    return c.json(withPhotoUrls(updated!));
   },
 );
 
@@ -631,7 +639,7 @@ listings.get("/", async (c) => {
   );
 
   const listingsWithFav = allListings.map((l) => ({
-    ...l,
+    ...withPhotoUrls(l),
     isFavorited: favoritedListingIds.has(l.id),
   }));
 
@@ -646,7 +654,7 @@ listings.get("/my-listings", async (c) => {
     include: listingInclude,
   });
 
-  return c.json({ listings: myListings, total: myListings.length });
+  return c.json({ listings: myListings.map(withPhotoUrls), total: myListings.length });
 });
 
 listings.get("/my-purchases", async (c) => {
@@ -675,7 +683,10 @@ listings.get("/my-purchases", async (c) => {
     include: listingInclude,
   });
 
-  return c.json({ listings: purchasedListings, total: purchasedListings.length });
+  return c.json({
+    listings: purchasedListings.map(withPhotoUrls),
+    total: purchasedListings.length,
+  });
 });
 
 listings.get("/:id", async (c) => {
@@ -721,5 +732,5 @@ listings.get("/:id", async (c) => {
     where: { accountPubkey_listingId: { accountPubkey: pubkey, listingId: id } },
   });
 
-  return c.json({ ...listing, isFavorited: !!fav });
+  return c.json({ ...withPhotoUrls(listing), isFavorited: !!fav });
 });
