@@ -1,19 +1,16 @@
 // NOTE: If a DELETE /api/listings/:id endpoint is added in the future,
-// it must also delete the uploads/listings/<id>/ directory from disk.
+// it must also delete the listing's photo objects from MinIO.
 
 import { type AuthEnv, bearerAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { uploadObject, deleteObject, getPresignedUrl } from "@/lib/minio";
 import { sValidator } from "@hono/standard-validator";
 import { Hono } from "hono";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
-import path from "node:path";
 import z from "zod";
 
 export const photos = new Hono<AuthEnv>();
 
 photos.use(bearerAuth);
-
-const UPLOADS_BASE = path.resolve(process.cwd(), "uploads");
 
 function extFromMime(mimeType: string, originalName: string): string {
   const fromMime: Record<string, string> = {
@@ -65,10 +62,7 @@ photos.post("/:id/photos", async (c) => {
     }
   }
 
-  const uploadDir = path.join(UPLOADS_BASE, "listings", String(id));
-  await mkdir(uploadDir, { recursive: true });
-
-  const writtenFiles: string[] = [];
+  const uploadedKeys: string[] = [];
 
   try {
     const created = await prisma.$transaction(async (tx) => {
@@ -77,15 +71,15 @@ photos.post("/:id/photos", async (c) => {
         const file = imageFiles[i]!;
         const ext = extFromMime(file.type, file.name);
         const filename = `${Date.now()}-${crypto.randomUUID()}${ext}`;
-        const filePath = path.join(uploadDir, filename);
+        const objectKey = `listings/${id}/${filename}`;
 
-        await writeFile(filePath, Buffer.from(await file.arrayBuffer()));
-        writtenFiles.push(filePath);
+        await uploadObject(objectKey, Buffer.from(await file.arrayBuffer()), file.type);
+        uploadedKeys.push(objectKey);
 
         const photo = await tx.listingPhoto.create({
           data: {
             listingId: id,
-            filename,
+            filename: objectKey,
             mimeType: file.type,
             size: file.size,
             position: existingCount + i,
@@ -98,8 +92,8 @@ photos.post("/:id/photos", async (c) => {
 
     return c.json(created, 201);
   } catch (_err) {
-    for (const fp of writtenFiles) {
-      await unlink(fp).catch(() => {});
+    for (const key of uploadedKeys) {
+      await deleteObject(key).catch(() => {});
     }
     return c.text("Failed to upload photos", 500);
   }
@@ -118,10 +112,23 @@ photos.delete("/:id/photos/:photoId", async (c) => {
 
   await prisma.listingPhoto.delete({ where: { id: photoId } });
 
-  const filePath = path.join(UPLOADS_BASE, "listings", String(id), photo.filename);
-  await unlink(filePath).catch(() => {});
+  await deleteObject(photo.filename).catch(() => {});
 
   return c.json({ deleted: true });
+});
+
+photos.get("/:id/photos/:photoId/url", async (c) => {
+  const id = Number(c.req.param("id"));
+  const photoId = Number(c.req.param("photoId"));
+  if (isNaN(id) || isNaN(photoId)) return c.text("Invalid id", 400);
+
+  const photo = await prisma.listingPhoto.findFirst({
+    where: { id: photoId, listingId: id },
+  });
+  if (!photo) return c.text("Photo not found", 404);
+
+  const url = await getPresignedUrl(photo.filename);
+  return c.json({ url });
 });
 
 photos.patch(
