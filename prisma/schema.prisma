@@ -7,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model Account {
@@ -281,7 +281,7 @@ model ListingPhoto {
   id        Int      @id @default(autoincrement())
   listingId Int
   listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  filename  String
+  filename  String   // MinIO object key (e.g., "listings/42/abc123.jpg")
   mimeType  String
   size      Int
   position  Int      @default(0)
