@@ -440,6 +440,19 @@
             },
             "description": "Reorder photos by providing array of photoIds in desired order. Must include all existing photo IDs. Only seller can reorder."
           }
+        },
+        {
+          "name": "Get Photo Presigned URL",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/listings/1/photos/1/url",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "listings", "1", "photos", "1", "url"]
+            },
+            "description": "Get a presigned URL for secure, time-limited access to a photo stored in MinIO. URL is valid for 1 hour and does not require authentication or MinIO credentials."
+          }
         }
       ]
     },
@@ -730,7 +743,14 @@
             "url": {
               "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/collaborate/seller-psbt",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "collaborate", "seller-psbt"]
+              "path": [
+                "api",
+                "escrows",
+                "address",
+                "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "collaborate",
+                "seller-psbt"
+              ]
             },
             "description": "Seller requests PSBT to sign"
           }
@@ -756,7 +776,14 @@
             "url": {
               "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/collaborate/seller-submit-psbt",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "collaborate", "seller-submit-psbt"]
+              "path": [
+                "api",
+                "escrows",
+                "address",
+                "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "collaborate",
+                "seller-submit-psbt"
+              ]
             },
             "description": "Seller submits signed PSBT"
           }
@@ -774,7 +801,14 @@
             "url": {
               "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/collaborate/buyer-psbt",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "collaborate", "buyer-psbt"]
+              "path": [
+                "api",
+                "escrows",
+                "address",
+                "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "collaborate",
+                "buyer-psbt"
+              ]
             },
             "description": "Buyer polls for seller's signed PSBT"
           }
@@ -800,7 +834,14 @@
             "url": {
               "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/collaborate/buyer-submit-psbt",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "collaborate", "buyer-submit-psbt"]
+              "path": [
+                "api",
+                "escrows",
+                "address",
+                "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "collaborate",
+                "buyer-submit-psbt"
+              ]
             },
             "description": "Buyer submits fully-signed PSBT to Ark network"
           }
@@ -826,7 +867,14 @@
             "url": {
               "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/collaborate/buyer-sign-checkpoints",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "collaborate", "buyer-sign-checkpoints"]
+              "path": [
+                "api",
+                "escrows",
+                "address",
+                "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "collaborate",
+                "buyer-sign-checkpoints"
+              ]
             },
             "description": "Buyer signs and submits checkpoint transactions"
           }
@@ -844,7 +892,14 @@
             "url": {
               "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/collaborate/seller-checkpoints",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "collaborate", "seller-checkpoints"]
+              "path": [
+                "api",
+                "escrows",
+                "address",
+                "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "collaborate",
+                "seller-checkpoints"
+              ]
             },
             "description": "Seller polls for buyer's signed checkpoints"
           }
@@ -870,7 +925,14 @@
             "url": {
               "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/collaborate/seller-sign-checkpoints",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "collaborate", "seller-sign-checkpoints"]
+              "path": [
+                "api",
+                "escrows",
+                "address",
+                "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "collaborate",
+                "seller-sign-checkpoints"
+              ]
             },
             "description": "Seller signs and finalizes on-chain"
           }
@@ -893,7 +955,14 @@
             "url": {
               "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/refund/psbt",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "refund", "psbt"]
+              "path": [
+                "api",
+                "escrows",
+                "address",
+                "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "refund",
+                "psbt"
+              ]
             },
             "description": "Buyer requests refund PSBT"
           }
@@ -919,7 +988,14 @@
             "url": {
               "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/refund/submit-signed-psbt",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "refund", "submit-signed-psbt"]
+              "path": [
+                "api",
+                "escrows",
+                "address",
+                "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "refund",
+                "submit-signed-psbt"
+              ]
             },
             "description": "Buyer submits signed refund PSBT to Ark network"
           }
@@ -945,7 +1021,14 @@
             "url": {
               "raw": "{{baseUrl}}/api/escrows/address/tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/refund/finalize",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "escrows", "address", "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "refund", "finalize"]
+              "path": [
+                "api",
+                "escrows",
+                "address",
+                "tark1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "refund",
+                "finalize"
+              ]
             },
             "description": "Buyer finalizes refund on-chain"
           }
