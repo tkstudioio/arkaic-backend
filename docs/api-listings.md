@@ -41,14 +41,14 @@ The signature must be a valid Schnorr signature over the JSON-serialized request
 
 **Attribute field mapping by type:**
 
-| Type | Required Field(s) | Description |
-| ---- | ------------------ | ----------- |
-| `select` | `valueId` | Single predefined value ID |
-| `boolean` | `valueBool` | `true` or `false` |
-| `text` | `valueText` | Free-form text (non-empty) |
-| `range` | `valueText` | Numeric value as string (must be within min/max bounds) |
-| `date` | `valueText` | ISO 8601 date string (YYYY-MM-DD) |
-| `multi_select` | `valueIds` | Array of predefined value IDs (at least one) |
+| Type           | Required Field(s) | Description                                             |
+| -------------- | ----------------- | ------------------------------------------------------- |
+| `select`       | `valueId`         | Single predefined value ID                              |
+| `boolean`      | `valueBool`       | `true` or `false`                                       |
+| `text`         | `valueText`       | Free-form text (non-empty)                              |
+| `range`        | `valueText`       | Numeric value as string (must be within min/max bounds) |
+| `date`         | `valueText`       | ISO 8601 date string (YYYY-MM-DD)                       |
+| `multi_select` | `valueIds`        | Array of predefined value IDs (at least one)            |
 
 ### Response (201)
 
@@ -115,23 +115,23 @@ The signature must be a valid Schnorr signature over the JSON-serialized request
 
 ### Errors
 
-| Status | Description |
-| ------ | ----------- |
-| 400    | Price is less than or equal to Ark provider's dust fee |
-| 400    | `categoryId` is required when attributes are provided |
-| 400    | Attribute not found or not valid for this category |
-| 400    | Required attribute is missing |
+| Status | Description                                                                                                         |
+| ------ | ------------------------------------------------------------------------------------------------------------------- |
+| 400    | Price is less than or equal to Ark provider's dust fee                                                              |
+| 400    | `categoryId` is required when attributes are provided                                                               |
+| 400    | Attribute not found or not valid for this category                                                                  |
+| 400    | Required attribute is missing                                                                                       |
 | 400    | Attribute type mismatch (select attribute without valueId, boolean without valueBool, text without valueText, etc.) |
-| 400    | Duplicate attributeId in attributes array |
-| 400    | For select attribute: valueId must reference a valid value for this attribute |
-| 400    | For text attribute: valueText is required and cannot be empty |
-| 400    | For range attribute: valueText must be numeric and within min/max bounds |
-| 400    | For date attribute: valueText must be in ISO 8601 format (YYYY-MM-DD) |
-| 400    | For multi_select attribute: valueIds must be a non-empty array of valid value IDs |
-| 400    | Invalid JSON schema (missing or wrong type for fields) |
-| 401    | Missing or invalid Bearer token |
-| 401    | Invalid signature — does not verify against the seller's pubkey |
-| 404    | Category not found (if categoryId was provided but does not exist) |
+| 400    | Duplicate attributeId in attributes array                                                                           |
+| 400    | For select attribute: valueId must reference a valid value for this attribute                                       |
+| 400    | For text attribute: valueText is required and cannot be empty                                                       |
+| 400    | For range attribute: valueText must be numeric and within min/max bounds                                            |
+| 400    | For date attribute: valueText must be in ISO 8601 format (YYYY-MM-DD)                                               |
+| 400    | For multi_select attribute: valueIds must be a non-empty array of valid value IDs                                   |
+| 400    | Invalid JSON schema (missing or wrong type for fields)                                                              |
+| 401    | Missing or invalid Bearer token                                                                                     |
+| 401    | Invalid signature — does not verify against the seller's pubkey                                                     |
+| 404    | Category not found (if categoryId was provided but does not exist)                                                  |
 
 ### Example curl
 
@@ -220,14 +220,14 @@ At least one field (other than signature) must be provided. The signature is com
 
 **Same attribute field mapping as POST:**
 
-| Type | Required Field(s) |
-| ---- | ------------------ |
-| `select` | `valueId` |
-| `boolean` | `valueBool` |
-| `text` | `valueText` |
-| `range` | `valueText` |
-| `date` | `valueText` |
-| `multi_select` | `valueIds` |
+| Type           | Required Field(s) |
+| -------------- | ----------------- |
+| `select`       | `valueId`         |
+| `boolean`      | `valueBool`       |
+| `text`         | `valueText`       |
+| `range`        | `valueText`       |
+| `date`         | `valueText`       |
+| `multi_select` | `valueIds`        |
 
 ### Response (200)
 
@@ -235,25 +235,25 @@ Same as POST response above (with all new attribute types and fields included).
 
 ### Errors
 
-| Status | Description |
-| ------ | ----------- |
-| 400    | Price is less than or equal to Ark provider's dust fee (if price was updated) |
-| 400    | `categoryId` is required when attributes are provided |
-| 400    | Attribute not found or not valid for this category |
-| 400    | Required attribute is missing |
+| Status | Description                                                                                 |
+| ------ | ------------------------------------------------------------------------------------------- |
+| 400    | Price is less than or equal to Ark provider's dust fee (if price was updated)               |
+| 400    | `categoryId` is required when attributes are provided                                       |
+| 400    | Attribute not found or not valid for this category                                          |
+| 400    | Required attribute is missing                                                               |
 | 400    | Attribute type mismatch (select attribute without valueId, boolean without valueBool, etc.) |
-| 400    | Duplicate attributeId in attributes array |
-| 400    | For text attribute: valueText is required and cannot be empty |
-| 400    | For range attribute: valueText must be numeric and within min/max bounds |
-| 400    | For date attribute: valueText must be in ISO 8601 format (YYYY-MM-DD) |
-| 400    | For multi_select attribute: valueIds must be a non-empty array of valid value IDs |
-| 400    | Invalid JSON schema (wrong type for fields) |
-| 401    | Missing or invalid Bearer token |
-| 401    | Invalid signature — does not verify against the seller's pubkey |
-| 403    | Listing belongs to a different seller (not authorized to update) |
-| 404    | Listing not found |
-| 404    | Category not found (if categoryId was provided but does not exist) |
-| 409    | Cannot modify a listing with an active escrow |
+| 400    | Duplicate attributeId in attributes array                                                   |
+| 400    | For text attribute: valueText is required and cannot be empty                               |
+| 400    | For range attribute: valueText must be numeric and within min/max bounds                    |
+| 400    | For date attribute: valueText must be in ISO 8601 format (YYYY-MM-DD)                       |
+| 400    | For multi_select attribute: valueIds must be a non-empty array of valid value IDs           |
+| 400    | Invalid JSON schema (wrong type for fields)                                                 |
+| 401    | Missing or invalid Bearer token                                                             |
+| 401    | Invalid signature — does not verify against the seller's pubkey                             |
+| 403    | Listing belongs to a different seller (not authorized to update)                            |
+| 404    | Listing not found                                                                           |
+| 404    | Category not found (if categoryId was provided but does not exist)                          |
+| 409    | Cannot modify a listing with an active escrow                                               |
 
 ### Example curl
 
@@ -323,7 +323,7 @@ GET /api/listings?limit=20&offset=0&categoryId=2&attr_1=20&attr_3=11
 - `search`: (Optional) Search term to filter listings by name or description
 - `sort`: (Optional) Sort order: `newest` (default), `oldest`, `price_asc`, `price_desc`
 - `includeChildren`: (Optional) If `true` and `categoryId` is provided, includes listings from child categories
-- `attr_<attributeId>=<valueId>`: (Optional) Filter by select/multi_select attribute values. For select attributes, provide the value ID. For multi_select, separate multiple values with `&attr_<id>=<value>`. Multiple values for the same attribute are treated as OR (any match).
+- `attr_<attributeId>=<valueId>`: (Optional) Filter by select/multi*select attribute values. For select attributes, provide the value ID. For multi_select, separate multiple values with `&attr*<id>=<value>`. Multiple values for the same attribute are treated as OR (any match).
 - `attr_<attributeId>=true|false`: (Optional) Filter by boolean attributes.
 - `attr_<attributeId>=<min>,<max>`: (Optional) Filter by range attributes. Provide min and max separated by comma. Can omit either side for unbounded range (e.g., `attr_5=10,` for min only, `attr_5=,100` for max only).
 
@@ -385,11 +385,12 @@ GET /api/listings?limit=20&offset=0&categoryId=2&attr_1=20&attr_3=11
       "photos": [
         {
           "id": "number — unique photo ID",
-          "filename": "string — filename with extension",
+          "filename": "string — MinIO object key (listings/<listing_id>/<timestamp>-<uuid>.<ext>)",
           "mimeType": "string — MIME type (e.g., 'image/jpeg')",
           "size": "number — file size in bytes",
           "position": "number — sort position (0-indexed)",
-          "createdAt": "ISO 8601 datetime — when photo was uploaded"
+          "createdAt": "ISO 8601 datetime — when photo was uploaded",
+          "url": "string — direct public URL for accessing the photo"
         }
       ],
       "_count": {
@@ -406,16 +407,16 @@ Results are ordered by listing ID in descending order (newest first), or by the 
 
 ### Errors
 
-| Status | Description |
-| ------ | ----------- |
-| 400    | Invalid limit (less than 1 or greater than 100) |
-| 400    | Invalid offset (negative) |
-| 400    | Invalid minPrice or maxPrice (negative or not numeric) |
-| 400    | minPrice exceeds maxPrice |
+| Status | Description                                                                 |
+| ------ | --------------------------------------------------------------------------- |
+| 400    | Invalid limit (less than 1 or greater than 100)                             |
+| 400    | Invalid offset (negative)                                                   |
+| 400    | Invalid minPrice or maxPrice (negative or not numeric)                      |
+| 400    | minPrice exceeds maxPrice                                                   |
 | 400    | Invalid sort value (must be: `newest`, `oldest`, `price_asc`, `price_desc`) |
-| 400    | categoryId is required when using attribute filters |
-| 400    | Attribute is not filterable for this category |
-| 401    | Missing or invalid Bearer token |
+| 400    | categoryId is required when using attribute filters                         |
+| 400    | Attribute is not filterable for this category                               |
+| 401    | Missing or invalid Bearer token                                             |
 
 ### Example curl
 
@@ -516,11 +517,12 @@ No query parameters.
       "photos": [
         {
           "id": "number — unique photo ID",
-          "filename": "string — filename with extension",
+          "filename": "string — MinIO object key (listings/<listing_id>/<timestamp>-<uuid>.<ext>)",
           "mimeType": "string — MIME type (e.g., 'image/jpeg')",
           "size": "number — file size in bytes",
           "position": "number — sort position (0-indexed)",
-          "createdAt": "ISO 8601 datetime — when photo was uploaded"
+          "createdAt": "ISO 8601 datetime — when photo was uploaded",
+          "url": "string — direct public URL for accessing the photo"
         }
       ],
       "attributes": [
@@ -567,8 +569,8 @@ No query parameters.
 
 ### Errors
 
-| Status | Description |
-| ------ | ----------- |
+| Status | Description                     |
+| ------ | ------------------------------- |
 | 401    | Missing or invalid Bearer token |
 
 ### Example curl
@@ -625,11 +627,12 @@ No query parameters.
       "photos": [
         {
           "id": "number — unique photo ID",
-          "filename": "string — filename with extension",
+          "filename": "string — MinIO object key (listings/<listing_id>/<timestamp>-<uuid>.<ext>)",
           "mimeType": "string — MIME type (e.g., 'image/jpeg')",
           "size": "number — file size in bytes",
           "position": "number — sort position (0-indexed)",
-          "createdAt": "ISO 8601 datetime — when photo was uploaded"
+          "createdAt": "ISO 8601 datetime — when photo was uploaded",
+          "url": "string — direct public URL for accessing the photo"
         }
       ],
       "attributes": [
@@ -678,8 +681,8 @@ Includes seller details and favorite counts. Results are unordered (returned as-
 
 ### Errors
 
-| Status | Description |
-| ------ | ----------- |
+| Status | Description                     |
+| ------ | ------------------------------- |
 | 401    | Missing or invalid Bearer token |
 
 ### Example curl
@@ -803,9 +806,9 @@ Path parameters:
 
 ### Errors
 
-| Status | Description |
-| ------ | ----------- |
-| 401    | Missing or invalid Bearer token |
+| Status | Description                                                                      |
+| ------ | -------------------------------------------------------------------------------- |
+| 401    | Missing or invalid Bearer token                                                  |
 | 404    | Listing not found (invalid ID or has active escrow and user is not seller/buyer) |
 
 ### Example curl

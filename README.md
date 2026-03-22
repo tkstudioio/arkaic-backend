@@ -83,8 +83,9 @@ SERVER_PRIVKEY="your-server-private-key-hex"
 **MinIO Setup Notes:**
 
 - The backend automatically creates the MinIO bucket on startup if it doesn't exist
+- The bucket is automatically set to **public read-only** during initialization, allowing direct access to all photos without credentials
 - Photos are stored with the key pattern: `listings/<listing_id>/<timestamp>-<uuid>.<ext>`
-- Presigned URLs are generated for secure, time-limited photo access (default 1 hour)
+- Public URLs are returned for direct photo access (format: `<MINIO_ENDPOINT>/<MINIO_BUCKET>/<object_key>`)
 - The MinIO Console (port 9001) allows manual bucket/object management and credential changes
 - For production, use a dedicated MinIO instance or AWS S3 by configuring `MINIO_ENDPOINT` accordingly
 
@@ -300,5 +301,5 @@ prisma/
 - **Schnorr Signatures:** All critical data is signed for non-repudiation
 - **Escrow Address:** Deterministic based on (buyer, seller, timelock) tuple
 - **CLTV Timelock:** Embedded in refund path, immutable after escrow creation
-- **Photo Storage:** All listing photos are stored in MinIO with server-signed presigned URLs for secure, time-limited access
-- **MinIO Bucket:** Automatically created on server startup; object key pattern: `listings/<listing_id>/<timestamp>-<uuid>.<ext>`
+- **Photo Storage:** All listing photos are stored in MinIO with public read access; photos are accessible via direct URLs without authentication
+- **MinIO Bucket:** Automatically created and set to public read-only on server startup; object key pattern: `listings/<listing_id>/<timestamp>-<uuid>.<ext>`
